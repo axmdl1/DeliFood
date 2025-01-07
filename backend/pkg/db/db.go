@@ -1,9 +1,9 @@
 package db
 
 import (
+	"DeliFood/backend/pkg/logger"
 	"database/sql"
 	"fmt"
-	"log"
 	"os"
 )
 
@@ -16,26 +16,37 @@ type Config struct {
 	SSLMode  string
 }
 
-func newDB(cfg Config) (*sql.DB, error) {
+func newDB(cfg Config, log *logger.Logger) (*sql.DB, error) {
 	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s", cfg.Host, cfg.Port,
 		cfg.User, cfg.Password, cfg.DBName, cfg.SSLMode)
 
+	log.Info("Attempting to connect to database", map[string]interface{}{
+		"host":   cfg.Host,
+		"port":   cfg.Port,
+		"dbname": cfg.DBName,
+	})
+
 	db, err := sql.Open("postgres", connStr)
 	if err != nil {
-		return nil, fmt.Errorf("Failed to open database: %w", err)
+		log.Error("Failed to open database", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
-
-	defer db.Close()
 
 	if err = db.Ping(); err != nil {
-		return nil, fmt.Errorf("Failed to connect database: %w", err)
+		log.Error("Failed to connect to database", map[string]interface{}{
+			"error": err.Error(),
+		})
+		return nil, fmt.Errorf("failed to connect database: %w", err)
 	}
 
-	defer log.Println("Successfully connected to database")
+	log.Info("Successfully connected to database", nil)
 	return db, nil
 }
 
-func LoadConfigFromEnv() Config {
+func LoadConfigFromEnv(log *logger.Logger) Config {
+	log.Info("Loading database configuration from environment variables", nil)
 	return Config{
 		Host:     os.Getenv("DB_HOST"),
 		Port:     getenvAsInt("DB_PORT", 5432),
