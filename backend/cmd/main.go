@@ -1,6 +1,7 @@
 package main
 
 import (
+	"DeliFood/backend/handlers"
 	"DeliFood/backend/pkg/logger"
 	"DeliFood/backend/pkg/middleware"
 	"context"
@@ -12,13 +13,6 @@ import (
 	"time"
 )
 
-/*
-var templates = template.Must(template.ParseFiles("index.frontend"))
-
-	func HomePageHandler(w http.ResponseWriter, r *http.Request) {
-		templates.ExecuteTemplate(w, "index.frontend", nil)
-	}
-*/
 func main() {
 	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -39,15 +33,16 @@ func main() {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.ServeFile(w, r, "frontend/index.html")
 	})
+	/*
+		paginationHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "frontend/menu.html")
+		})*/
 
-	// Serve static files from the "frontend" directory
-	/*http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./frontend/index.frontend")
-	})*/
-
+	//run frontend to the server
 	fs := http.FileServer(http.Dir("./frontend"))
 	http.Handle("/", fs)
-	http.Handle("/menu", rateLimiter.Limit(handler))
+	http.Handle("/logs", rateLimiter.Limit(handler))
+	http.HandleFunc("/menu", handlers.FilterHandler)
 
 	// Start HTTP server
 	server := &http.Server{

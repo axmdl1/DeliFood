@@ -330,6 +330,31 @@ section{
     color:var(--text-color-2);
     line-height: 1.7;
 }
+
+.packages .showMoreBtnCenter{
+    text-align: center;
+}
+
+.packages .showMoreBtn{
+    display: inline-block;
+    padding: 17px;
+    border-radius: 30px;
+    margin: 20px;
+    color: #fff;
+    text-transform: uppercase;
+    font-size: 16px;
+    letter-spacing: .15rem;
+    transition: all .3s;
+    position: relative;
+    overflow: hidden;
+    background-color: #fb8332;
+    z-index: 1;
+}
+
+.packages .showMoreBtn:hover{
+    color: #fb8332;
+    background-color: #fff;
+}
  
 .pricing .box-container{
     display: grid;
