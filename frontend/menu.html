@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>DeliFood - Menu</title>
+
+    <link rel="stylesheet" href="https://unpkg.com/swiper/swiper-bundle.min.css" />
+
+    <!-- font awesome cdn link  -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.1.1/css/all.min.css">
+
+    <link rel="stylesheet" href="assets/css/menuStyle.css">
+</head>
+<body>
+
+<header class="header">
+    <a href="#" class="logo"> <i class="fas fa-utensils"></i> DeliFood </a>
+    <a href="/" class="btn">home</a>
+</header>
+
+<section class="packages" id="packages">
+
+    <div class="menuContainer">
+        <h1 class="menu">Menu</h1>
+    </div>
+
+    <div class="box-container">
+
+        <div class="menu-items">
+            {{range .Items}}
+            <div class="box" data-aos="fade-up">
+                <div class="image">
+                    <img src="{{.Image}}" alt="{{.Name}}">
+                    <h3> <i class="fas fa-utensils"></i> {{.Name}} </h3>
+                </div>
+                <div class="content">
+                    <div class="price">{{.Name }} - {{.Price}}</div>
+                    <p>{{.Description}}</p>
+                    <a href="#" class="btn"> Order now</a>
+                </div>
+            </div>
+            {{end}}
+        </div>
+
+    </div>
+
+</section>
+
+    <!--Pagination-->
+    <div class="pagination">
+        {{if gt .CurrentPage 1}}
+        <a href="/menu?page={{sub .CurrentPage 1}}">Previous</a>
+        {{end}}
+        {{range $i := iter .TotalPages}}
+        <a href="/menu?page={{$i}}" class="{{if eq $i $.CurrentPage}}active{{end}}">{{$i}}</a>
+        {{end}}
+        {{if lt .CurrentPage .TotalPages}}
+        <a href="/menu?page={{add .CurrentPage 1}}">Next</a>
+        {{end}}
+    </div>
+</body>
+</html>

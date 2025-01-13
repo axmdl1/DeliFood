@@ -2,69 +2,63 @@ package handlers
 
 import (
 	"DeliFood/backend/models"
+	"fmt"
 	"net/http"
 	"strconv"
 	"text/template"
 )
 
-// Assuming you have a Foods slice that holds all food items
-var Foods []models.Food
-
 // Struct to hold page-related data
-type PageData struct {
-	Foods       []models.Food
+type MenuData struct {
+	Items       []models.Food
 	CurrentPage int
 	TotalPages  int
 }
 
-func FilterHandler(w http.ResponseWriter, r *http.Request) {
-	// Get the current page from the query parameter
-	pageParam := r.URL.Query().Get("page")
-	page := 1
-	if pageParam != "" {
-		var err error
-		page, err = strconv.Atoi(pageParam)
-		if err != nil {
-			page = 1
+func MainPageHandler(w http.ResponseWriter, r *http.Request) {
+	t, err := template.ParseFiles("frontend/index.html")
+	if err != nil {
+		fmt.Printf(err.Error())
+	}
+	t.ExecuteTemplate(w, "index.html", nil)
+}
+
+var tmplFuncs = template.FuncMap{
+	"add": func(x, y int) int { return x + y },
+	"sub": func(x, y int) int { return x - y },
+	"iter": func(n int) []int {
+		result := make([]int, n)
+		for i := 0; i < n; i++ {
+			result[i] = i + 1
 		}
+		return result
+	},
+}
+
+const itemsPerPage = 3
+
+func MenuHandler(w http.ResponseWriter, r *http.Request) {
+	pageQuery := r.URL.Query().Get("page")
+	page, err := strconv.Atoi(pageQuery)
+	if err != nil || page < 1 {
+		page = 1
 	}
 
-	// Set the number of items per page
-	itemsPerPage := 10
-
-	// Calculate the total number of pages
-	totalItems := len(Foods)
-	totalPages := totalItems / itemsPerPage
-	if totalItems%itemsPerPage != 0 {
-		totalPages++
+	totalItems := models.GetMenuItemCount() // Replace with actual implementation
+	start := (page - 1) * itemsPerPage
+	end := start + itemsPerPage
+	if end > totalItems {
+		end = totalItems
 	}
 
-	// Calculate the start and end index for the current page
-	startIndex := (page - 1) * itemsPerPage
-	endIndex := startIndex + itemsPerPage
-	if endIndex > totalItems {
-		endIndex = totalItems
-	}
+	items := models.GetPaginatedMenuItems(start, end) // Replace with actual implementation
 
-	// Slice the Foods array for the current page
-	pageFoods := Foods[startIndex:endIndex]
-
-	// Prepare data to pass to the template
-	data := PageData{
-		Foods:       pageFoods,
+	data := MenuData{
+		Items:       items,
 		CurrentPage: page,
-		TotalPages:  totalPages,
+		TotalPages:  (totalItems + itemsPerPage - 1) / itemsPerPage,
 	}
 
-	// Render the template with the page data
-	tmpl, err := template.ParseFiles("cmd/frontend/menu.html")
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	err = tmpl.Execute(w, data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	tmpl := template.Must(template.New("menu.html").Funcs(tmplFuncs).ParseFiles("./frontend/menu.html"))
+	tmpl.Execute(w, data)
 }
