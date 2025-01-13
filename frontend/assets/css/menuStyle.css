@@ -174,10 +174,37 @@ body {
     padding-left: 2rem;
 }
 
+/*Filtering and sorting*/
+.filter-sort-form {
+    display: flex;
+    justify-content: center;
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
 
+.filter-sort-form select {
+    padding: 0.8rem;
+    font-size: 1.4rem;
+    border: 1px solid #ddd;
+    border-radius: 0.5rem;
+    background: var(--bg-color-1);
+    color: var(--text-color-1);
+}
 
+.filter-sort-form .btn {
+    padding: 0.8rem 2rem;
+    font-size: 1.4rem;
+    color: #fff;
+    background: var(--orange);
+    border-radius: 0.5rem;
+    cursor: pointer;
+}
 
+.filter-sort-form .btn:hover {
+    background: #c87a17;
+}
 
+/*Menu container and foods*/
 .menuContainer {
     text-align: center;
     padding: 2rem 7%;
@@ -188,7 +215,9 @@ body {
     color: #ab6806;
     font-size: 4rem;
     margin-bottom: 2rem;
+    text-align: center;
 }
+
 /* Box Container for Items */
 .box-container {
     display: flex;

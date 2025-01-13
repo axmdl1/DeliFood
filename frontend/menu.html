@@ -18,11 +18,25 @@
     <a href="/" class="btn">home</a>
 </header>
 
-<section class="packages" id="packages">
-
-    <div class="menuContainer">
+<section class="functions">
         <h1 class="menu">Menu</h1>
-    </div>
+        <form action="/menu" method="get" class="filter-sort-form">
+            <select name="category">
+                <option value="">All Categories</option>
+                <option value="Burger">Burger</option>
+                <option value="Biryani">Biryani</option>
+            </select>
+            <select name="sort">
+                <option value="">Sort By</option>
+                <option value="price-asc">Price: Low to High</option>
+                <option value="price-desc">Price: High to Low</option>
+                <option value="name">Name</option>
+            </select>
+            <button type="submit" class="btn">Apply</button>
+        </form>
+</section>
+
+<section class="packages" id="packages">
 
     <div class="box-container">
 
