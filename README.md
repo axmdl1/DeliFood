@@ -31,16 +31,21 @@ Before running this project, ensure you have the following installed:
 ## Setup and Installation
 
 1. **Clone the Repository**:
+   ```bash
    git clone https://github.com/axmdl1/DeliFood.git
    cd DeliFood
-2. **Install Dependencies**: 
+3. **Install Dependencies**:
+   ```bash 
    go mod tidy
-3. **Configure SMTP Credentials: Update the handlers.ContactUsHandler function with your SMTP email and password**:
+5. **Configure SMTP Credentials: Update the handlers.ContactUsHandler function with your SMTP email and password**:
+   ```bash
    dialer := gomail.NewDialer("smtp.mail.ru", 587, "your-email@mail.ru", "your-password")
-4. **Create Required Directories: Ensure the temp directory exists for file uploads**:
+7. **Create Required Directories: Ensure the temp directory exists for file uploads**:
+   ```bash
    mkdir temp
-5. **Run the application**:
+9. **Run the application**:
+    ```bash
    go run main.go
-6. **Access the Application: Open your browser and navigate to http://localhost:9078**
+11. **Access the Application: Open your browser and navigate to http://localhost:9078**
 
 
