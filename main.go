@@ -3,8 +3,8 @@ package main
 import (
 	"DeliFood/backend/handlers"
 	"DeliFood/backend/pkg/logger"
+	"DeliFood/backend/pkg/middleware"
 	"context"
-	"html/template"
 	"log"
 	"net/http"
 	"os"
@@ -12,14 +12,6 @@ import (
 	"syscall"
 	"time"
 )
-
-func MenuPageHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles("frontend/menu.html")
-	if err != nil {
-		log.Fatal(err)
-	}
-	t.ExecuteTemplate(w, "menu.html", nil)
-}
 
 func main() {
 	_, cancel := context.WithCancel(context.Background())
@@ -34,18 +26,27 @@ func main() {
 		"status": "success",
 	})
 
-	//working with server side
-	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./frontend/assets/"))))
+	rateLimiter := middleware.NewRateLimiter(2.0, 5, logger)
 
-	http.HandleFunc("/", handlers.MainPageHandler)
-	http.HandleFunc("/contact", handlers.ContactUsHandler)
-	http.HandleFunc("/menu", handlers.MenuHandler)
+	//http mux
+	mux := http.NewServeMux()
+
+	//working with server side
+	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./frontend/assets/"))))
+
+	mux.HandleFunc("/", handlers.MainPageHandler)
+	mux.HandleFunc("/contact", handlers.ContactUsHandler)
+	mux.HandleFunc("/menu", handlers.MenuHandler)
+
+	rateLimitedMux := rateLimiter.Limit(mux)
 
 	// Start HTTP server
 	server := &http.Server{
-		Addr: ":9078",
+		Addr:    ":9078",
+		Handler: rateLimitedMux,
 	}
 
+	//Start server in goroutine
 	go func() {
 		log.Println("Listening on :9078")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
