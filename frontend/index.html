@@ -297,21 +297,20 @@
 
     <h1 class="heading"> <span>contact</span> us </h1>
 
-    <form action="" data-aos="zoom">
+    <form action="/contact" method="POST" data-aos="zoom">
 
         <div class="inputBox">
-            <input type="text" placeholder="name" data-aos="fade-up">
-            <input type="email" placeholder="email" data-aos="fade-up">
+            <input type="text" name="name" placeholder="name" data-aos="fade-up" required>
+            <input type="email" name="email" placeholder="email" data-aos="fade-up" required>
         </div>
 
         <div class="inputBox">
-            <input type="number" placeholder="number" data-aos="fade-up">
-            <input type="text" placeholder="subject" data-aos="fade-up">
+            <input type="text" name="subject" placeholder="subject" data-aos="fade-up" required>
         </div>
 
-        <textarea name="" placeholder="your message" id="" cols="30" rows="10" data-aos="fade-up"></textarea>
-        
-        <input type="submit" value="send message" class="btn">
+        <textarea name="message" placeholder="your message" id="" cols="30" rows="10" data-aos="fade-up" required></textarea>
+
+        <button type="submit" class="btn">Send Message</button>
 
     </form>
 
@@ -394,11 +393,11 @@
             <h3>quick links</h3>
             <a href="#"> <i class="fas fa-chevron-right"></i> home </a>
             <a href="#"> <i class="fas fa-chevron-right"></i> packages </a>
-            <a href="#"> <i class="fas fa-chevron-right"></i> services </a>
+            <a href="/menu"> <i class="fas fa-chevron-right"></i> menu </a>
             <a href="#"> <i class="fas fa-chevron-right"></i> pricing </a>
             <a href="#"> <i class="fas fa-chevron-right"></i> review </a>
-            <a href="#"> <i class="fas fa-chevron-right"></i> contact </a>
-            <a href="#"> <i class="fas fa-chevron-right"></i> blogs </a>
+            <a href="#contact"> <i class="fas fa-chevron-right"></i> contact </a>
+            <a href="#blogs"> <i class="fas fa-chevron-right"></i> blogs </a>
         </div>
 
         <div class="box" data-aos="fade-up">

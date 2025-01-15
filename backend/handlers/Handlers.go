@@ -3,6 +3,7 @@ package handlers
 import (
 	"DeliFood/backend/models"
 	"fmt"
+	"gopkg.in/gomail.v2"
 	"net/http"
 	"sort"
 	"strconv"
@@ -109,4 +110,38 @@ func getMenuItems(category, sortParam string) []models.Food {
 	}
 
 	return filteredItems
+}
+
+func ContactUsHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodPost {
+		name := r.FormValue("name")
+		email := r.FormValue("email")
+		subject := r.FormValue("subject")
+		message := r.FormValue("message")
+
+		if name == "" || email == "" || subject == "" || message == "" {
+			http.Error(w, "All fields are required", http.StatusBadRequest)
+			return
+		}
+
+		mail := gomail.NewMessage()
+		mail.SetHeader("From", "mr.akhmedali@bk.ru")
+		mail.SetHeader("To", "mr.akhmedali@bk.ru")
+		mail.SetHeader("Subject", fmt.Sprintf("Contact Us: %s", subject))
+
+		mail.SetHeader("Reply-To", email)
+
+		mail.SetBody("text/plain", fmt.Sprintf("From: %s\nEmail: %s\nMessage: %s", name, email, message))
+
+		dialer := gomail.NewDialer("smtp.mail.ru", 587, "mr.akhmedali@bk.ru", "LVWZUunmUvMW8giSXLe0")
+
+		if err := dialer.DialAndSend(mail); err != nil {
+			http.Error(w, fmt.Sprintf("Failed to send email %v", err), http.StatusInternalServerError)
+			return
+		}
+
+		fmt.Fprint(w, "Email sent successfully!")
+	} else {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+	}
 }

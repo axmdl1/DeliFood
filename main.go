@@ -38,6 +38,7 @@ func main() {
 	http.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./frontend/assets/"))))
 
 	http.HandleFunc("/", handlers.MainPageHandler)
+	http.HandleFunc("/contact", handlers.ContactUsHandler)
 	http.HandleFunc("/menu", handlers.MenuHandler)
 
 	// Start HTTP server
