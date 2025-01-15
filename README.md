@@ -34,18 +34,42 @@ Before running this project, ensure you have the following installed:
    ```bash
    git clone https://github.com/axmdl1/DeliFood.git
    cd DeliFood
-3. **Install Dependencies**:
+2. **Install Dependencies**:
    ```bash 
    go mod tidy
-5. **Configure SMTP Credentials: Update the handlers.ContactUsHandler function with your SMTP email and password**:
+3. **Configure SMTP Credentials: Update the handlers.ContactUsHandler function with your SMTP email and password**:
    ```bash
    dialer := gomail.NewDialer("smtp.mail.ru", 587, "your-email@mail.ru", "your-password")
-7. **Create Required Directories: Ensure the temp directory exists for file uploads**:
+4. **Create Required Directories: Ensure the temp directory exists for file uploads**:
    ```bash
    mkdir temp
-9. **Run the application**:
+5. **Run the application**:
     ```bash
    go run main.go
-11. **Access the Application: Open your browser and navigate to http://localhost:9078**
+6. **Access the Application: Open your browser and navigate to http://localhost:9078**
+
+
+## Features in Detail
+
+### 1. Contact Form
+- **Endpoint**: `/contact`
+- **Functionality**:
+  - Users can submit their name, email, subject, and message.
+  - Users can attach a file (image or document) to the message.
+  - Admin receives the email with the user's details and file attachment.
+
+### 2. Menu Page
+- **Endpoint**: `/menu`
+- **Functionality**:
+  - Displays menu items with pagination.
+  - Includes filtering (by category) and sorting (by name or price).
+
+### 3. Rate Limiting
+- Limits requests to **2 requests per second** with a burst capacity of **5 requests**.
+- Excess requests return `429 Too Many Requests` with a `Retry-After` header.
+
+### 4. Graceful Shutdown
+- Handles incoming requests during shutdown.
+- Waits up to **5 seconds** for active requests to complete.
 
 
