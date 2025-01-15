@@ -297,7 +297,7 @@
 
     <h1 class="heading"> <span>contact</span> us </h1>
 
-    <form action="/contact" method="POST" data-aos="zoom">
+    <form action="/contact" method="POST" enctype="multipart/form-data" data-aos="zoom">
 
         <div class="inputBox">
             <input type="text" name="name" placeholder="name" data-aos="fade-up" required>
@@ -306,6 +306,7 @@
 
         <div class="inputBox">
             <input type="text" name="subject" placeholder="subject" data-aos="fade-up" required>
+            <input type="file" name="attachment"  accept="image/*,application/pdf" />
         </div>
 
         <textarea name="message" placeholder="your message" id="" cols="30" rows="10" data-aos="fade-up" required></textarea>

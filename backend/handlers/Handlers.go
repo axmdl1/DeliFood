@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"gopkg.in/gomail.v2"
 	"net/http"
+	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"text/template"
@@ -114,6 +116,12 @@ func getMenuItems(category, sortParam string) []models.Food {
 
 func ContactUsHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
+		err := r.ParseMultipartForm(10 << 20) // Allow files up to 10MB
+		if err != nil {
+			http.Error(w, fmt.Sprintf("Unable to process form data %v", err), http.StatusInternalServerError)
+			return
+		}
+
 		name := r.FormValue("name")
 		email := r.FormValue("email")
 		subject := r.FormValue("subject")
@@ -124,20 +132,57 @@ func ContactUsHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		tempDir := "temp"
+		if _, err := os.Stat(tempDir); os.IsNotExist(err) {
+			err = os.Mkdir(tempDir, os.ModePerm)
+			if err != nil {
+				http.Error(w, "Failed to create directory for file storage", http.StatusInternalServerError)
+				return
+			}
+		}
+
+		file, header, err := r.FormFile("attachment")
+		var filePath string
+		if err == nil {
+			defer file.Close()
+
+			// Save the file to the server temporarily
+			filePath = filepath.Join("temp", header.Filename)
+			tempFile, err := os.Create(filePath)
+			if err != nil {
+				http.Error(w, "Failed to save file", http.StatusInternalServerError)
+				return
+			}
+			defer tempFile.Close()
+
+			// Write the uploaded file to the server
+			_, err = tempFile.ReadFrom(file)
+			if err != nil {
+				http.Error(w, "Failed to process file", http.StatusInternalServerError)
+				return
+			}
+		}
+
 		mail := gomail.NewMessage()
 		mail.SetHeader("From", "mr.akhmedali@bk.ru")
 		mail.SetHeader("To", "mr.akhmedali@bk.ru")
 		mail.SetHeader("Subject", fmt.Sprintf("Contact Us: %s", subject))
-
 		mail.SetHeader("Reply-To", email)
-
 		mail.SetBody("text/plain", fmt.Sprintf("From: %s\nEmail: %s\nMessage: %s", name, email, message))
 
-		dialer := gomail.NewDialer("smtp.mail.ru", 587, "mr.akhmedali@bk.ru", "LVWZUunmUvMW8giSXLe0")
+		if filePath != "" {
+			fmt.Println("Attaching file", filePath)
+			mail.Attach(filePath)
+		}
 
+		dialer := gomail.NewDialer("smtp.mail.ru", 587, "mr.akhmedali@bk.ru", "LVWZUunmUvMW8giSXLe0")
 		if err := dialer.DialAndSend(mail); err != nil {
 			http.Error(w, fmt.Sprintf("Failed to send email %v", err), http.StatusInternalServerError)
 			return
+		}
+
+		if filePath != "" {
+			os.Remove(filePath)
 		}
 
 		fmt.Fprint(w, "Email sent successfully!")
