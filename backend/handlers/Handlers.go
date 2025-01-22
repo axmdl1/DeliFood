@@ -33,7 +33,7 @@ var tmplFuncs = template.FuncMap{
 	},
 }
 
-const itemsPerPage = 3
+const itemsPerPage = 12
 
 func MenuHandler(w http.ResponseWriter, r *http.Request) {
 	// Get query parameters for filtering, sorting, and pagination

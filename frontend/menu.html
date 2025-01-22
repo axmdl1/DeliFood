@@ -39,24 +39,21 @@
 <section class="packages" id="packages">
 
     <div class="box-container">
-
-        <div class="menu-items">
-            {{range .Items}}
-            <div class="box" data-aos="fade-up">
-                <div class="image">
-                    <img src="{{.Image}}" alt="{{.Name}}">
-                    <h3> <i class="fas fa-utensils"></i> {{.Name}} </h3>
-                </div>
-                <div class="content">
-                    <div class="price">{{.Name }} - {{.Price}}</div>
-                    <p>{{.Description}}</p>
-                    <a href="#" class="btn"> Order now</a>
-                </div>
+        {{range .Items}}
+        <div class="box" data-aos="fade-up">
+            <div class="image">
+                <img src="{{.Image}}" alt="{{.Name}}">
+                <h3> <i class="fas fa-utensils"></i> {{.Name}} </h3>
             </div>
-            {{end}}
+            <div class="content">
+                <div class="price">{{.Name }} - {{.Price}}</div>
+                <p>{{.Description}}</p>
+                <a href="#" class="btn"> Order now</a>
+            </div>
         </div>
-
+        {{end}}
     </div>
+    
 
 </section>
 
