@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 	"os"
+
+	_ "github.com/lib/pq"
 )
 
 type Config struct {
@@ -16,7 +18,7 @@ type Config struct {
 	SSLMode  string
 }
 
-func newDB(cfg Config, log *logger.Logger) (*sql.DB, error) {
+func NewDB(cfg Config, log *logger.Logger) (*sql.DB, error) {
 	connStr := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=%s", cfg.Host, cfg.Port,
 		cfg.User, cfg.Password, cfg.DBName, cfg.SSLMode)
 

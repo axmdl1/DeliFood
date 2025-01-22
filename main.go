@@ -2,6 +2,7 @@ package main
 
 import (
 	"DeliFood/backend/handlers"
+	"DeliFood/backend/pkg/db"
 	"DeliFood/backend/pkg/logger"
 	"DeliFood/backend/pkg/middleware"
 	"context"
@@ -11,11 +12,19 @@ import (
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/joho/godotenv"
+	_ "github.com/lib/pq"
 )
 
 func main() {
 	_, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Println("No .env file found. Using system environment variables.")
+	}
 
 	// Initialize logger
 	logger := logger.NewLogger()
@@ -28,6 +37,16 @@ func main() {
 
 	rateLimiter := middleware.NewRateLimiter(2.0, 5, logger)
 
+	cfg := db.LoadConfigFromEnv(logger)
+
+	dbs, err := db.NewDB(cfg, logger)
+	if err != nil {
+		log.Fatal("Failed to connect to database", err)
+	}
+	defer dbs.Close()
+
+	handlers.SetDB(dbs)
+
 	//http mux
 	mux := http.NewServeMux()
 
@@ -37,6 +56,7 @@ func main() {
 	mux.HandleFunc("/", handlers.MainPageHandler)
 	mux.HandleFunc("/contact", handlers.ContactUsHandler)
 	mux.HandleFunc("/menu", handlers.MenuHandler)
+	mux.HandleFunc("/register", handlers.RegisterHandler)
 
 	rateLimitedMux := rateLimiter.Limit(mux)
 
@@ -63,7 +83,7 @@ func main() {
 	cancel()
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer shutdownCancel()
-	err := server.Shutdown(shutdownCtx)
+	err = server.Shutdown(shutdownCtx)
 	if err != nil {
 		logger.Error("Could not shut down the server!!!", map[string]interface{}{"Error:": err})
 	}

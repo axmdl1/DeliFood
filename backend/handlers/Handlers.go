@@ -2,7 +2,9 @@ package handlers
 
 import (
 	"DeliFood/backend/models"
+	"database/sql"
 	"fmt"
+	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gomail.v2"
 	"net/http"
 	"os"
@@ -10,7 +12,15 @@ import (
 	"sort"
 	"strconv"
 	"text/template"
+
+	_ "github.com/lib/pq"
 )
+
+var database *sql.DB
+
+func SetDB(db *sql.DB) {
+	database = db
+}
 
 func MainPageHandler(w http.ResponseWriter, r *http.Request) {
 	t, err := template.ParseFiles("frontend/index.html")
@@ -33,7 +43,7 @@ var tmplFuncs = template.FuncMap{
 	},
 }
 
-const itemsPerPage = 3
+const itemsPerPage = 12
 
 func MenuHandler(w http.ResponseWriter, r *http.Request) {
 	// Get query parameters for filtering, sorting, and pagination
@@ -189,4 +199,43 @@ func ContactUsHandler(w http.ResponseWriter, r *http.Request) {
 	} else {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 	}
+}
+
+func RegisterHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	username := r.URL.Query().Get("username")
+	email := r.URL.Query().Get("email")
+	password := r.URL.Query().Get("password")
+
+	if username == "" || email == "" || password == "" {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
+
+	/*var user models.User
+	if err := json.NewDecoder(r.Body).Decode(&user); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
+		return
+	}*/
+
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		http.Error(w, "Error creating user", http.StatusInternalServerError)
+		return
+	}
+
+	_, err = database.Exec("INSERT INTO users (username, email, password) VALUES ($1, $2, $3)",
+		username, email, string(hashedPassword))
+	if err != nil {
+		fmt.Printf("Database error: %v\n", err)
+		http.Error(w, "Error saving user", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("User registered successfully"))
 }

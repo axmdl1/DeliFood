@@ -16,17 +16,3 @@ var Foods = []Food{
 	{Name: "Grilled Chicken", Category: "Chicken", Image: "assets/images/menu/blog-5.jpg", Description: "Enjoy the smoky, savory goodness of our Grilled Chicken—perfectly marinated and char-grilled to lock in the juices. A simple yet irresistible dish that’s high in flavor and protein.", Price: "390.99"},
 	{Name: "Roasted Chicken", Category: "Chicken", Image: "assets/images/menu/blog-6.jpg", Description: "Treat yourself to our succulent Roasted Chicken, slow-cooked to perfection with a blend of herbs and spices, delivering a crispy golden skin and tender, flavorful meat.", Price: "412.99"},
 }
-
-func GetMenuItemCount() int {
-	return len(Foods)
-}
-
-func GetPaginatedMenuItems(start, end int) []Food {
-	if start >= len(Foods) {
-		return []Food{}
-	}
-	if end > len(Foods) {
-		end = len(Foods)
-	}
-	return Foods[start:end]
-}
