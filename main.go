@@ -61,7 +61,6 @@ func main() {
 	mux.HandleFunc("/", handlers.MainPageHandler)
 	mux.HandleFunc("/contact", handlers.ContactUsHandler)
 	mux.HandleFunc("/menu", handlers.MenuHandler)
-	mux.HandleFunc("/Auth/login", handlers.LoginHandler)
 
 	authMux := http.NewServeMux()
 
@@ -69,6 +68,10 @@ func main() {
 	authMux.HandleFunc("/verify-email", handlers.VerifyEmailHandler)
 	authMux.HandleFunc("/login", handlers.LoginHandler)
 	mux.Handle("/Auth/", http.StripPrefix("/Auth", authMux))
+
+	/*adminMux := http.NewServeMux()
+	mux.Handle("/Admin/", middleware.RoleMiddleware("admin")(adminMux))
+	adminMux.HandleFunc("/admin/changerole", handlers.)*/
 
 	rateLimitedMux := rateLimiter.Limit(mux)
 

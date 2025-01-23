@@ -64,10 +64,68 @@ func (ur *UserRepo) UpdateUserToken(userID int, token string) error {
 
 func (ur *UserRepo) GetUserByToken(token string) (*models.User, error) {
 	var user models.User
-	err := ur.DB.QueryRow(`SELECT id, username, email, password, token FROM users WHERE token = $1`, token).
-		Scan(&user.ID, &user.UserName, &user.Email, &user.Password, &user.Token)
+	err := ur.DB.QueryRow(`SELECT id, username, email, password, token, role FROM users WHERE token = $1`, token).
+		Scan(&user.ID, &user.UserName, &user.Email, &user.Password, &user.Token, &user.Role)
 	if err != nil {
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (ur *UserRepo) AddFood(food models.Food) error {
+	_, err := ur.DB.Exec(`
+		INSERT INTO foods (name, category, image, description, price) 
+		VALUES ($1, $2, $3, $4, $5)`,
+		food.Name, food.Category, food.Image, food.Description, food.Price)
+	if err != nil {
+		return fmt.Errorf("failed to insert food item: %w", err)
+	}
+	return nil
+}
+
+func (ur *UserRepo) GetFood(category, sortParam string) ([]models.Food, error) {
+	// Base query
+	query := "SELECT name, category, image, description, price FROM foods"
+
+	// Add filtering by category
+	var args []interface{}
+	if category != "" {
+		query += " WHERE category = $1"
+		args = append(args, category)
+	}
+
+	// Add sorting
+	switch sortParam {
+	case "price-asc":
+		query += " ORDER BY price ASC"
+	case "price-desc":
+		query += " ORDER BY price DESC"
+	case "name":
+		query += " ORDER BY name ASC"
+	}
+
+	// Execute query
+	rows, err := ur.DB.Query(query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve food items: %w", err)
+	}
+	defer rows.Close()
+
+	// Parse rows into food items
+	var foods []models.Food
+	for rows.Next() {
+		var food models.Food
+		err := rows.Scan(&food.Name, &food.Category, &food.Image, &food.Description, &food.Price)
+		if err != nil {
+			return nil, fmt.Errorf("error scanning food row: %w", err)
+		}
+		foods = append(foods, food)
+	}
+
+	// Check for errors after iteration
+	if err = rows.Err(); err != nil {
+		return nil, fmt.Errorf("error during row iteration: %w", err)
+	}
+
+	return foods, nil
 }

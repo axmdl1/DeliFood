@@ -8,4 +8,5 @@ type User struct {
 	VerificationCode string
 	IsVerified       bool   `json:"is_verified"`
 	Token            string `json:"token"`
+	Role             string `json:"role"`
 }

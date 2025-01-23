@@ -5,6 +5,7 @@ import (
 	"DeliFood/backend/pkg/repo"
 	"database/sql"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gomail.v2"
@@ -66,25 +67,48 @@ func MenuHandler(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 
-	// Filter and sort menu items
-	filterSort := getMenuItems(category, sortParam)
+	// Fetch items from the database
+	foods, err := userRepo.GetFood(category, sortParam) // Use the `GetFoods` function
+	if err != nil {
+		http.Error(w, "Failed to load menu items", http.StatusInternalServerError)
+		return
+	}
 
-	// Calculate total items and validate pagination indices
-	totalItems := len(filterSort) // Use filtered and sorted items count
+	// Filter by category
+	filteredFoods := []models.Food{}
+	for _, food := range foods {
+		if category == "" || food.Category == category {
+			filteredFoods = append(filteredFoods, food)
+		}
+	}
+
+	// Sort by specified parameter
+	switch sortParam {
+	case "price-asc":
+		sort.Slice(filteredFoods, func(i, j int) bool {
+			return filteredFoods[i].Price < filteredFoods[j].Price
+		})
+	case "price-desc":
+		sort.Slice(filteredFoods, func(i, j int) bool {
+			return filteredFoods[i].Price > filteredFoods[j].Price
+		})
+	case "name":
+		sort.Slice(filteredFoods, func(i, j int) bool {
+			return filteredFoods[i].Name < filteredFoods[j].Name
+		})
+	}
+
+	// Calculate total items and pagination
+	totalItems := len(filteredFoods)
 	start := (page - 1) * itemsPerPage
 	end := start + itemsPerPage
-
-	if start > totalItems { // If start index exceeds total items, return no items
+	if start > totalItems {
 		start = totalItems
 	}
-	if end > totalItems { // If end index exceeds total items, cap it at total items
+	if end > totalItems {
 		end = totalItems
 	}
-	if start > end { // Ensure start is always less than or equal to end
-		start = end
-	}
-
-	paginatedItems := filterSort[start:end] // Safe slicing
+	paginatedItems := filteredFoods[start:end]
 
 	// Prepare data for the template
 	data := struct {
@@ -94,7 +118,7 @@ func MenuHandler(w http.ResponseWriter, r *http.Request) {
 	}{
 		Items:       paginatedItems,
 		CurrentPage: page,
-		TotalPages:  (totalItems + itemsPerPage - 1) / itemsPerPage, // Total pages calculation
+		TotalPages:  (totalItems + itemsPerPage - 1) / itemsPerPage,
 	}
 
 	// Parse and execute the template
@@ -103,36 +127,6 @@ func MenuHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 	}
-}
-
-// Filter and sort menu items
-func getMenuItems(category, sortParam string) []models.Food {
-	filteredItems := []models.Food{}
-
-	// Filter by category
-	for _, item := range models.Foods {
-		if category == "" || item.Category == category {
-			filteredItems = append(filteredItems, item)
-		}
-	}
-
-	// Sort by specified parameter
-	switch sortParam {
-	case "price-asc":
-		sort.Slice(filteredItems, func(i, j int) bool {
-			return filteredItems[i].Price < filteredItems[j].Price
-		})
-	case "price-desc":
-		sort.Slice(filteredItems, func(i, j int) bool {
-			return filteredItems[i].Price > filteredItems[j].Price
-		})
-	case "name":
-		sort.Slice(filteredItems, func(i, j int) bool {
-			return filteredItems[i].Name < filteredItems[j].Name
-		})
-	}
-
-	return filteredItems
 }
 
 func ContactUsHandler(w http.ResponseWriter, r *http.Request) {
@@ -379,7 +373,45 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Return token to the user
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(token))
+	response := map[string]string{
+		"token": token,
+		"role":  user.Role,
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func AddFoodHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	name := r.FormValue("name")
+	category := r.FormValue("category")
+	image := r.FormValue("image")
+	description := r.FormValue("description")
+	price := r.FormValue("price")
+
+	if name == "" || category == "" || image == "" || description == "" || price == "" {
+		http.Error(w, "All fields are required", http.StatusBadRequest)
+		return
+	}
+
+	// Save food item to the database
+	err := userRepo.AddFood(models.Food{
+		Name:        name,
+		Category:    category,
+		Image:       image,
+		Description: description,
+		Price:       price,
+	})
+	if err != nil {
+		http.Error(w, "Failed to add food item: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusCreated)
+	w.Write([]byte("Food item added successfully"))
 }
