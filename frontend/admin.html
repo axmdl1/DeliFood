@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - DeliFood</title>
+    <link rel="stylesheet" href="assets/css/menuStyle.css">
+</head>
+<body>
+
+<header class="header">
+    <a href="#" class="logo"> <i class="fas fa-utensils"></i> Admin Panel </a>
+    <a href="/" class="btn">Go to Menu</a>
+</header>
+
+<section class="admin-panel">
+    <h1 class="menu">Admin Panel</h1>
+
+    <!-- Form for adding/editing food -->
+    <form id="foodForm" class="filter-sort-form" action="/admin/food" method="post">
+        <input type="hidden" name="id" id="foodId">
+        <input type="text" name="name" id="foodName" placeholder="Food Name" required>
+        <input type="text" name="category" id="foodCategory" placeholder="Category" required>
+        <input type="number" name="price" id="foodPrice" placeholder="Price" required>
+        <textarea name="description" id="foodDescription" placeholder="Description" required></textarea>
+        <input type="text" name="image" id="foodImage" placeholder="Image Filename" required>
+        <button type="submit" class="btn">Save</button>
+    </form>
+
+    <!-- List of foods -->
+    <table class="food-table">
+        <thead>
+            <tr>
+                <th>Image Filename</th>
+                <th>Name</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>Description</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Foods}}
+            <tr>
+                <td>{{.Image}}</td>
+                <td>{{.Name}}</td>
+                <td>{{.Category}}</td>
+                <td>{{.Price}}</td>
+                <td>{{.Description}}</td>
+                <td>
+                    <button class="btn edit-btn" data-id="{{.ID}}">Edit</button>
+                    <form action="/admin/food/delete" method="post" style="display:inline;">
+                        <input type="hidden" name="id" value="{{.ID}}">
+                        <button type="submit" class="btn delete-btn">Delete</button>
+                    </form>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</section>
+
+</body>
+</html>
