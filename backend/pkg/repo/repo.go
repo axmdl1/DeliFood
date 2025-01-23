@@ -32,28 +32,16 @@ func GenerateVerificationCode() string {
 
 func (ur *UserRepo) GetUserByEmail(email string) (models.User, error) {
 	var user models.User
-	var token sql.NullString // Use sql.NullString to handle NULL values in the database
-
 	err := ur.DB.QueryRow(`
-		SELECT id, username, email, password, token 
+		SELECT id, username, email, password, token, role 
 		FROM users WHERE email = $1
-	`, email).Scan(&user.ID, &user.UserName, &user.Email, &user.Password, &token)
-
+	`, email).Scan(&user.ID, &user.UserName, &user.Email, &user.Password, &user.Token, &user.Role)
 	if err == sql.ErrNoRows {
 		return models.User{}, fmt.Errorf("no user found with email: %s", email)
 	}
-
 	if err != nil {
 		return models.User{}, fmt.Errorf("database query error: %w", err)
 	}
-
-	// Convert sql.NullString to string, handle NULL case
-	if token.Valid {
-		user.Token = token.String
-	} else {
-		user.Token = "" // Default value for NULL token
-	}
-
 	return user, nil
 }
 
@@ -62,13 +50,45 @@ func (ur *UserRepo) UpdateUserToken(userID int, token string) error {
 	return err
 }
 
+func (ur *UserRepo) UpdateUserRole(email string, newRole string) error {
+	// Update the user's role based on their email
+	_, err := ur.DB.Exec(`
+        UPDATE users 
+        SET role = $1 
+        WHERE email = $2`,
+		newRole, email)
+
+	if err != nil {
+		return fmt.Errorf("failed to update user role: %w", err)
+	}
+
+	return nil
+}
+
 func (ur *UserRepo) GetUserByToken(token string) (*models.User, error) {
 	var user models.User
-	err := ur.DB.QueryRow(`SELECT id, username, email, password, token, role FROM users WHERE token = $1`, token).
-		Scan(&user.ID, &user.UserName, &user.Email, &user.Password, &user.Token, &user.Role)
-	if err != nil {
-		return nil, err
+	var dbToken sql.NullString
+
+	err := ur.DB.QueryRow(`
+		SELECT id, username, email, password, token, role
+		FROM users WHERE token = $1
+	`, token).Scan(&user.ID, &user.UserName, &user.Email, &user.Password, &dbToken, &user.Role)
+
+	if err == sql.ErrNoRows {
+		return nil, fmt.Errorf("no user found with token: %s", token)
 	}
+
+	if err != nil {
+		return nil, fmt.Errorf("database query error: %w", err)
+	}
+
+	// Handle NULL token
+	if dbToken.Valid {
+		user.Token = dbToken.String
+	} else {
+		user.Token = ""
+	}
+
 	return &user, nil
 }
 
@@ -76,11 +96,23 @@ func (ur *UserRepo) AddFood(food models.Food) error {
 	_, err := ur.DB.Exec(`
 		INSERT INTO foods (name, category, image, description, price) 
 		VALUES ($1, $2, $3, $4, $5)`,
-		food.Name, food.Category, food.Image, food.Description, food.Price)
-	if err != nil {
-		return fmt.Errorf("failed to insert food item: %w", err)
-	}
-	return nil
+		food.Name, food.Category, food.Image, food.Description, food.Price,
+	)
+	return err
+}
+
+func (ur *UserRepo) UpdateFood(food models.Food) error {
+	_, err := ur.DB.Exec(`
+		UPDATE foods SET name = $1, category = $2, image = $3, description = $4, price = $5 
+		WHERE id = $6`,
+		food.Name, food.Category, food.Image, food.Description, food.Price, food.ID,
+	)
+	return err
+}
+
+func (ur *UserRepo) DeleteFood(id int) error {
+	_, err := ur.DB.Exec(`DELETE FROM foods WHERE id = $1`, id)
+	return err
 }
 
 func (ur *UserRepo) GetFood(category, sortParam string) ([]models.Food, error) {

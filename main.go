@@ -52,26 +52,32 @@ func main() {
 	userRepository := repo.NewUserRepo(dbs)
 	handlers.SetUserRepo(userRepository)
 
-	//http mux
+	// Initialize HTTP mux
 	mux := http.NewServeMux()
 
-	//working with server side
+	// Static assets
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./frontend/assets/"))))
 
+	// Public routes
 	mux.HandleFunc("/", handlers.MainPageHandler)
 	mux.HandleFunc("/contact", handlers.ContactUsHandler)
 	mux.HandleFunc("/menu", handlers.MenuHandler)
 
+	// Authentication routes
 	authMux := http.NewServeMux()
+	authMux.HandleFunc("/login", handlers.LoginHandler)              // Render login page or process login
+	authMux.HandleFunc("/register", handlers.SignUpHandler)          // Handle user registration
+	authMux.HandleFunc("/verify-email", handlers.VerifyEmailHandler) // Handle email verification
+	mux.Handle("/auth/", http.StripPrefix("/auth", authMux))
 
-	authMux.HandleFunc("/register", handlers.RegisterHandler)
-	authMux.HandleFunc("/verify-email", handlers.VerifyEmailHandler)
-	authMux.HandleFunc("/login", handlers.LoginHandler)
-	mux.Handle("/Auth/", http.StripPrefix("/Auth", authMux))
-
-	/*adminMux := http.NewServeMux()
-	mux.Handle("/Admin/", middleware.RoleMiddleware("admin")(adminMux))
-	adminMux.HandleFunc("/admin/changerole", handlers.)*/
+	// Admin routes
+	adminMux := http.NewServeMux()
+	adminMux.Handle("/panel", middleware.RoleMiddleware(userRepository, "admin")(http.HandlerFunc(handlers.AdminPanelHandler)))
+	adminMux.Handle("/food", middleware.RoleMiddleware(userRepository, "admin")(http.HandlerFunc(handlers.AddOrUpdateFoodHandler)))
+	adminMux.Handle("/food/delete", middleware.RoleMiddleware(userRepository, "admin")(http.HandlerFunc(handlers.DeleteFoodHandler)))
+	adminMux.Handle("/add-food", middleware.RoleMiddleware(userRepository, "admin")(http.HandlerFunc(handlers.AddOrUpdateFoodHandler)))
+	adminMux.Handle("/change-role", middleware.RoleMiddleware(userRepository, "admin")(http.HandlerFunc(handlers.ChangeRoleHandler)))
+	mux.Handle("/admin/", http.StripPrefix("/admin", adminMux))
 
 	rateLimitedMux := rateLimiter.Limit(mux)
 

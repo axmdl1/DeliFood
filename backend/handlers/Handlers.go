@@ -5,7 +5,6 @@ import (
 	"DeliFood/backend/pkg/repo"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gomail.v2"
@@ -206,7 +205,7 @@ func ContactUsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func RegisterHandler(w http.ResponseWriter, r *http.Request) {
+func SignUpHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
@@ -328,60 +327,94 @@ func generateToken() (string, error) {
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	// Handle GET request: Render the login page
+	if r.Method == http.MethodGet {
+		// Render the auth.html template
+		tmpl := template.Must(template.ParseFiles("./frontend/auth.html"))
+		err := tmpl.Execute(w, nil)
+		if err != nil {
+			http.Error(w, "Failed to render login page: "+err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// Handle POST request: Process login
+	if r.Method == http.MethodPost {
+		email := r.FormValue("email")
+		password := r.FormValue("password")
+
+		if email == "" || password == "" {
+			http.Error(w, "Missing email or password", http.StatusBadRequest)
+			return
+		}
+
+		// Fetch user from the database
+		user, err := userRepo.GetUserByEmail(email)
+		if err != nil {
+			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+			return
+		}
+
+		// Validate password
+		err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+		if err != nil {
+			http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+			return
+		}
+
+		// Generate a token for the user
+		token, err := generateToken()
+		if err != nil {
+			http.Error(w, "Failed to generate token", http.StatusInternalServerError)
+			return
+		}
+
+		// Store the token in the database
+		err = userRepo.UpdateUserToken(user.ID, token)
+		if err != nil {
+			http.Error(w, "Failed to store token", http.StatusInternalServerError)
+			return
+		}
+
+		// Redirect based on role (optional)
+		if user.Role == "admin" {
+			http.Redirect(w, r, "/admin/panel", http.StatusSeeOther)
+		} else {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+		}
+
+		return
+	}
+
+	// If the request method is not GET or POST, return a 405 Method Not Allowed error
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+}
+
+func ChangeRoleHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
 		return
 	}
 
 	email := r.URL.Query().Get("email")
-	password := r.URL.Query().Get("password")
+	newRole := r.URL.Query().Get("role")
 
-	if email == "" || password == "" {
+	if email == "" || newRole == "" {
 		http.Error(w, "Missing required fields", http.StatusBadRequest)
 		return
 	}
 
-	// Fetch user from the database
-	user, err := userRepo.GetUserByEmail(email)
+	// Update user's role in the database
+	err := userRepo.UpdateUserRole(email, newRole)
 	if err != nil {
-		fmt.Printf("Error fetching user: %v\n", err) // Debugging log
-		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+		http.Error(w, "Error updating user role", http.StatusInternalServerError)
 		return
 	}
 
-	// Validate password
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
-	if err != nil {
-		fmt.Printf("Error validating password: %v\n", err) // Debugging log
-		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
-		return
-	}
-
-	// Generate token
-	token, err := generateToken()
-	if err != nil {
-		fmt.Printf("Error generating token: %v\n", err) // Debugging log
-		http.Error(w, "Error generating token", http.StatusInternalServerError)
-		return
-	}
-
-	// Store token in the database
-	err = userRepo.UpdateUserToken(user.ID, token)
-	if err != nil {
-		fmt.Printf("Error saving token: %v\n", err) // Debugging log
-		http.Error(w, "Error saving token", http.StatusInternalServerError)
-		return
-	}
-
-	response := map[string]string{
-		"token": token,
-		"role":  user.Role,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
+	w.Write([]byte("User role updated successfully"))
 }
 
+/*
 func AddFoodHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
@@ -415,3 +448,4 @@ func AddFoodHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("Food item added successfully"))
 }
+*/

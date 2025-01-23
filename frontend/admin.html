@@ -30,35 +30,90 @@
     <!-- List of foods -->
     <table class="food-table">
         <thead>
-            <tr>
-                <th>Image Filename</th>
-                <th>Name</th>
-                <th>Category</th>
-                <th>Price</th>
-                <th>Description</th>
-                <th>Actions</th>
-            </tr>
+        <tr>
+            <th>Image Filename</th>
+            <th>Name</th>
+            <th>Category</th>
+            <th>Price</th>
+            <th>Description</th>
+            <th>Actions</th>
+        </tr>
         </thead>
-        <tbody>
-            {{range .Foods}}
-            <tr>
-                <td>{{.Image}}</td>
-                <td>{{.Name}}</td>
-                <td>{{.Category}}</td>
-                <td>{{.Price}}</td>
-                <td>{{.Description}}</td>
-                <td>
-                    <button class="btn edit-btn" data-id="{{.ID}}">Edit</button>
-                    <form action="/admin/food/delete" method="post" style="display:inline;">
-                        <input type="hidden" name="id" value="{{.ID}}">
-                        <button type="submit" class="btn delete-btn">Delete</button>
-                    </form>
-                </td>
-            </tr>
-            {{end}}
+        <tbody id="foodTableBody">
+        {{range .Foods}}
+        <tr>
+            <td>{{.Image}}</td>
+            <td>{{.Name}}</td>
+            <td>{{.Category}}</td>
+            <td>{{.Price}}</td>
+            <td>{{.Description}}</td>
+            <td>
+                <button class="btn edit-btn" data-id="{{.ID}}" onclick="editFood(this)">Edit</button>
+                <form action="/admin/food/delete" method="post" style="display:inline;">
+                    <input type="hidden" name="id" value="{{.ID}}">
+                    <button type="submit" class="btn delete-btn">Delete</button>
+                </form>
+            </td>
+        </tr>
+        {{end}}
         </tbody>
     </table>
 </section>
+
+<script>
+    localStorage.setItem('token', 'f68de409b1feff085cd6cb726e9b3c41')
+    const token = localStorage.getItem("token");
+    if (!token) {
+        alert("Unauthorized: Please log in.");
+        window.location.href = "/auth/login";
+    }
+
+    // Add Authorization header to all form submissions
+    document.getElementById("foodForm").addEventListener("submit", function (e) {
+        e.preventDefault();
+
+        const formData = new FormData(this);
+        const foodData = Object.fromEntries(formData.entries());
+
+        fetch('/admin/panel', {
+            method: 'GET',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+            }
+        })
+            .then(response => {
+                if (response.status === 401) {
+                    alert("Unauthorized: Please log in again");
+                    window.location.href = "/auth/login";
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Admin panel data:", data);
+            })
+            .catch(error => console.error("Error:", error));
+
+    });
+
+    // Populate form for editing food
+    function editFood(button) {
+        const row = button.closest("tr");
+        const id = button.getAttribute("data-id");
+        const name = row.children[1].textContent;
+        const category = row.children[2].textContent;
+        const price = row.children[3].textContent;
+        const description = row.children[4].textContent;
+        const image = row.children[0].textContent;
+
+        document.getElementById("foodId").value = id;
+        document.getElementById("foodName").value = name;
+        document.getElementById("foodCategory").value = category;
+        document.getElementById("foodPrice").value = price;
+        document.getElementById("foodDescription").value = description;
+        document.getElementById("foodImage").value = image;
+    }
+</script>
 
 </body>
 </html>
