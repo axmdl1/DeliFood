@@ -5,6 +5,7 @@ import (
 	"DeliFood/backend/pkg/db"
 	"DeliFood/backend/pkg/logger"
 	"DeliFood/backend/pkg/middleware"
+	"DeliFood/backend/pkg/repo"
 	"context"
 	"log"
 	"net/http"
@@ -47,6 +48,10 @@ func main() {
 
 	handlers.SetDB(dbs)
 
+	// Initialize repository
+	userRepository := repo.NewUserRepo(dbs)
+	handlers.SetUserRepo(userRepository)
+
 	//http mux
 	mux := http.NewServeMux()
 
@@ -56,7 +61,14 @@ func main() {
 	mux.HandleFunc("/", handlers.MainPageHandler)
 	mux.HandleFunc("/contact", handlers.ContactUsHandler)
 	mux.HandleFunc("/menu", handlers.MenuHandler)
-	mux.HandleFunc("/register", handlers.RegisterHandler)
+	mux.HandleFunc("/Auth/login", handlers.LoginHandler)
+
+	authMux := http.NewServeMux()
+
+	authMux.HandleFunc("/register", handlers.RegisterHandler)
+	authMux.HandleFunc("/verify-email", handlers.VerifyEmailHandler)
+	authMux.HandleFunc("/login", handlers.LoginHandler)
+	mux.Handle("/Auth/", http.StripPrefix("/Auth", authMux))
 
 	rateLimitedMux := rateLimiter.Limit(mux)
 

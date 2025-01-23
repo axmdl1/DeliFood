@@ -2,10 +2,13 @@ package handlers
 
 import (
 	"DeliFood/backend/models"
+	"DeliFood/backend/pkg/repo"
 	"database/sql"
+	"encoding/hex"
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"gopkg.in/gomail.v2"
+	"math/rand"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -16,10 +19,18 @@ import (
 	_ "github.com/lib/pq"
 )
 
-var database *sql.DB
+var dbs *sql.DB
 
 func SetDB(db *sql.DB) {
-	database = db
+	dbs = db
+}
+
+// Add UserRepository as a global variable
+var userRepo *repo.UserRepo
+
+// SetUserRepo sets the user repository instance
+func SetUserRepo(r *repo.UserRepo) {
+	userRepo = r
 }
 
 func MainPageHandler(w http.ResponseWriter, r *http.Request) {
@@ -228,14 +239,147 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = database.Exec("INSERT INTO users (username, email, password) VALUES ($1, $2, $3)",
-		username, email, string(hashedPassword))
+	// Use the SignUp method to save the user in the database
+	verificationCode := repo.GenerateVerificationCode()
+	user := models.User{
+		UserName:         username,
+		Email:            email,
+		Password:         string(hashedPassword),
+		VerificationCode: verificationCode,
+	}
+
+	err = userRepo.SignUp(user)
 	if err != nil {
-		fmt.Printf("Database error: %v\n", err)
-		http.Error(w, "Error saving user", http.StatusInternalServerError)
+		http.Error(w, "Error saving user: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	// Send verification email
+	err = sendVerificationEmail(user.Email, verificationCode)
+	if err != nil {
+		http.Error(w, "Error sending verification email: "+err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	w.WriteHeader(http.StatusCreated)
 	w.Write([]byte("User registered successfully"))
+}
+
+func sendVerificationEmail(toEmail, verificationCode string) error {
+	fmt.Printf("Sending email to: %s with code: %s\n", toEmail, verificationCode)
+
+	mail := gomail.NewMessage()
+	mail.SetHeader("From", "mr.akhmedali@bk.ru")
+	mail.SetHeader("To", toEmail)
+	mail.SetHeader("Subject", "Email Verification Code")
+	mail.SetBody("text/plain", fmt.Sprintf("Your verification code is: %s", verificationCode))
+
+	dialer := gomail.NewDialer("smtp.mail.ru", 587, "mr.akhmedali@bk.ru", "LVWZUunmUvMW8giSXLe0")
+	return dialer.DialAndSend(mail)
+}
+
+func VerifyEmailHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	email := r.URL.Query().Get("email")
+	code := r.URL.Query().Get("code")
+
+	if email == "" || code == "" {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
+
+	// Verify the code in the database
+	var dbCode string
+	var isVerified bool
+	err := dbs.QueryRow(`
+		SELECT "verificationcode", "isverified" FROM users WHERE "email" = $1`,
+		email).Scan(&dbCode, &isVerified)
+	if err != nil {
+		http.Error(w, "Email not found", http.StatusNotFound)
+		return
+	}
+
+	if isVerified {
+		http.Error(w, "Email already verified", http.StatusBadRequest)
+		return
+	}
+
+	if dbCode != code {
+		http.Error(w, "Invalid verification code", http.StatusBadRequest)
+		return
+	}
+
+	// Mark the user as verified
+	_, err = dbs.Exec(`
+		UPDATE users SET "isverified" = $1 WHERE "email" = $2`,
+		true, email)
+	if err != nil {
+		http.Error(w, "Error verifying email", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write([]byte("Email verified successfully!"))
+}
+
+func generateToken() (string, error) {
+	bytes := make([]byte, 16)
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(bytes), nil
+}
+
+func LoginHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+		return
+	}
+
+	email := r.URL.Query().Get("email")
+	password := r.URL.Query().Get("password")
+
+	if email == "" || password == "" {
+		http.Error(w, "Missing required fields", http.StatusBadRequest)
+		return
+	}
+
+	// Fetch user from the database
+	user, err := userRepo.GetUserByEmail(email)
+	if err != nil {
+		fmt.Printf("Error fetching user: %v\n", err) // Debugging log
+		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+		return
+	}
+
+	// Validate password
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
+		fmt.Printf("Error validating password: %v\n", err) // Debugging log
+		http.Error(w, "Invalid email or password", http.StatusUnauthorized)
+		return
+	}
+
+	// Generate token
+	token, err := generateToken()
+	if err != nil {
+		fmt.Printf("Error generating token: %v\n", err) // Debugging log
+		http.Error(w, "Error generating token", http.StatusInternalServerError)
+		return
+	}
+
+	// Store token in the database
+	err = userRepo.UpdateUserToken(user.ID, token)
+	if err != nil {
+		fmt.Printf("Error saving token: %v\n", err) // Debugging log
+		http.Error(w, "Error saving token", http.StatusInternalServerError)
+		return
+	}
+
+	// Return token to the user
+	w.WriteHeader(http.StatusOK)
+	w.Write([]byte(token))
 }
