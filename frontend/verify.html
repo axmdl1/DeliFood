@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="/frontend/assets/css/authStyle.css">
+    <title>Register</title>
+    <script src="/assets/js/login.js"></script>
+</head>
+<body>
+<div class="login-box">
+    <div class="login-header">
+        <header>Verify your account</header>
+    </div>
+    <form id="verifyForm" action="/auth/verify-code" method="post">
+        <div class="input-box">
+            <input type="text" name="email" class="input-field" placeholder="Email" autocomplete="off" required>
+        </div>
+        <div class="input-box">
+            <input type="text" name="code" class="input-field" placeholder="code" autocomplete="off" required>
+        </div>
+        <div class="input-submit">
+            <button type="submit" class="submit-btn" id="submit">Verify</button>
+        </div>
+    </form>
+</div>
+</body>
+</html>
