@@ -90,7 +90,19 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
+// VerifyEmailHandler renders verify.html or processes verification
 func VerifyEmailHandler(w http.ResponseWriter, r *http.Request) {
+	// If the method is GET, render the verification page
+	if r.Method == http.MethodGet {
+		tmpl := template.Must(template.ParseFiles("./frontend/verify.html"))
+		err := tmpl.Execute(w, nil)
+		if err != nil {
+			http.Error(w, "Failed to render verification page: "+err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	// If the method is POST, process the email verification
 	email := r.FormValue("email")
 	verificationCode := r.FormValue("code")
 
