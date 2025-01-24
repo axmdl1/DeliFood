@@ -78,22 +78,21 @@
         fetch('/admin/panel', {
             method: 'GET',
             headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`,
-                'Content-Type': 'application/json'
+                'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
         })
             .then(response => {
-                if (response.status === 401) {
-                    alert("Unauthorized: Please log in again");
-                    window.location.href = "/auth/login";
+                if (response.ok) {
+                    return response.text();
                 }
-                return response.json();
+                throw new Error('Unauthorized');
             })
             .then(data => {
-                console.log("Admin panel data:", data);
+                console.log('Admin Panel:', data);
             })
-            .catch(error => console.error("Error:", error));
-
+            .catch(err => {
+                console.error(err.message);
+            });
     });
 
     // Populate form for editing food

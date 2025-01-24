@@ -3,9 +3,9 @@ package repo
 import (
 	"DeliFood/backend/models"
 	"database/sql"
+	"errors"
 	"fmt"
-	"math/rand"
-	"time"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserRepo struct {
@@ -16,80 +16,96 @@ func NewUserRepo(db *sql.DB) *UserRepo {
 	return &UserRepo{DB: db}
 }
 
-func (ur *UserRepo) SignUp(user models.User) error {
-	_, err := ur.DB.Exec("INSERT INTO users (username, email, password, verificationcode, isverified) VALUES ($1, $2, $3, $4, $5)",
-		user.UserName, user.Email, user.Password, user.VerificationCode, false)
-	if err != nil {
-		return fmt.Errorf("failed to insert user %w", err)
-	}
-	return nil
-}
-
-func GenerateVerificationCode() string {
-	rand.Seed(time.Now().UnixNano())
-	return fmt.Sprintf("%06d", rand.Intn(1000000))
-}
-
-func (ur *UserRepo) GetUserByEmail(email string) (models.User, error) {
+// GetUserByEmail retrieves a user from the database by their email.
+func (ur *UserRepo) GetUserByEmail(email string) (*models.User, error) {
 	var user models.User
 	err := ur.DB.QueryRow(`
-		SELECT id, username, email, password, token, role 
-		FROM users WHERE email = $1
-	`, email).Scan(&user.ID, &user.UserName, &user.Email, &user.Password, &user.Token, &user.Role)
-	if err == sql.ErrNoRows {
-		return models.User{}, fmt.Errorf("no user found with email: %s", email)
-	}
-	if err != nil {
-		return models.User{}, fmt.Errorf("database query error: %w", err)
-	}
-	return user, nil
-}
-
-func (ur *UserRepo) UpdateUserToken(userID int, token string) error {
-	_, err := ur.DB.Exec(`UPDATE users SET token = $1 WHERE id = $2`, token, userID)
-	return err
-}
-
-func (ur *UserRepo) UpdateUserRole(email string, newRole string) error {
-	// Update the user's role based on their email
-	_, err := ur.DB.Exec(`
-        UPDATE users 
-        SET role = $1 
-        WHERE email = $2`,
-		newRole, email)
+		SELECT id, username, email, password, verificationcode, isverified, role 
+		FROM users WHERE email = $1`, email).Scan(&user.ID, &user.UserName, &user.Email, &user.Password, &user.VerificationCode, &user.IsVerified, &user.Role)
 
 	if err != nil {
-		return fmt.Errorf("failed to update user role: %w", err)
-	}
-
-	return nil
-}
-
-func (ur *UserRepo) GetUserByToken(token string) (*models.User, error) {
-	var user models.User
-	var dbToken sql.NullString
-
-	err := ur.DB.QueryRow(`
-		SELECT id, username, email, password, token, role
-		FROM users WHERE token = $1
-	`, token).Scan(&user.ID, &user.UserName, &user.Email, &user.Password, &dbToken, &user.Role)
-
-	if err == sql.ErrNoRows {
-		return nil, fmt.Errorf("no user found with token: %s", token)
-	}
-
-	if err != nil {
-		return nil, fmt.Errorf("database query error: %w", err)
-	}
-
-	// Handle NULL token
-	if dbToken.Valid {
-		user.Token = dbToken.String
-	} else {
-		user.Token = ""
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("no user found with email: %s", email)
+		}
+		return nil, fmt.Errorf("error fetching user by email: %w", err)
 	}
 
 	return &user, nil
+}
+
+// Register user
+func (ur *UserRepo) Register(user models.User) error {
+	// Check for duplicate email or username
+	var exists bool
+	err := ur.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 OR username = $2)", user.Email, user.UserName).Scan(&exists)
+	if err != nil || exists {
+		return errors.New("email or username already exists")
+	}
+
+	// Hash the password
+	/*hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}*/
+
+	// Insert user into database
+	_, err = ur.DB.Exec("INSERT INTO users (username, email, password, verificationcode, isverified, role) VALUES ($1, $2, $3, $4, $5, $6)",
+		user.UserName, user.Email, user.Password, user.VerificationCode, false, user.Role)
+	return err
+}
+
+func (ur *UserRepo) UpdateVerificationStatus(userID int, isVerified bool) error {
+	_, err := ur.DB.Exec(`UPDATE users SET isverified = $1 WHERE id = $2`, isVerified, userID)
+	return err
+}
+
+func (ur *UserRepo) CheckEmailOrUsernameExists(email, username string) (bool, error) {
+	var count int
+	err := ur.DB.QueryRow(`
+		SELECT COUNT(*) 
+		FROM users 
+		WHERE email = $1 OR username = $2
+	`, email, username).Scan(&count)
+	if err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// Verify Email
+func (ur *UserRepo) VerifyEmail(email, code string) error {
+	var dbCode string
+	err := ur.DB.QueryRow("SELECT verificationcode FROM users WHERE email = $1", email).Scan(&dbCode)
+	if err != nil || dbCode != code {
+		return errors.New("invalid verification code")
+	}
+
+	_, err = ur.DB.Exec("UPDATE users SET isverified = TRUE WHERE email = $1", email)
+	return err
+}
+
+// Authenticate user
+func (ur *UserRepo) Authenticate(email, password string) (models.User, error) {
+	var user models.User
+
+	err := ur.DB.QueryRow("SELECT id, username, email, password, role, isverified FROM users WHERE email = $1", email).
+		Scan(&user.ID, &user.UserName, &user.Email, &user.Password, &user.Role, &user.IsVerified)
+
+	if err == sql.ErrNoRows {
+		return models.User{}, errors.New("invalid email or password")
+	}
+
+	if !user.IsVerified {
+		return models.User{}, errors.New("email not verified")
+	}
+
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
+	if err != nil {
+		fmt.Println("Password mismatch for email:", email)
+		return models.User{}, errors.New("invalid email or password")
+	}
+
+	return user, nil
 }
 
 func (ur *UserRepo) AddFood(food models.Food) error {

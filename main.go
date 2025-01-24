@@ -6,6 +6,7 @@ import (
 	"DeliFood/backend/pkg/logger"
 	"DeliFood/backend/pkg/middleware"
 	"DeliFood/backend/pkg/repo"
+	"DeliFood/backend/utils"
 	"context"
 	"log"
 	"net/http"
@@ -19,95 +20,79 @@ import (
 )
 
 func main() {
-	_, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
+	// Load environment variables
 	err := godotenv.Load(".env")
 	if err != nil {
 		log.Println("No .env file found. Using system environment variables.")
 	}
 
+	utils.InitJWTSecret()
+
 	// Initialize logger
 	logger := logger.NewLogger()
-
-	// Log application start
 	logger.Info("Application started", map[string]interface{}{
 		"module": "main",
 		"status": "success",
 	})
 
-	rateLimiter := middleware.NewRateLimiter(2.0, 5, logger)
-
+	// Load database config and connect to the database
 	cfg := db.LoadConfigFromEnv(logger)
-
-	dbs, err := db.NewDB(cfg, logger)
+	dbConn, err := db.NewDB(cfg, logger)
 	if err != nil {
-		log.Fatal("Failed to connect to database", err)
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer dbs.Close()
+	defer dbConn.Close()
 
-	handlers.SetDB(dbs)
-
-	// Initialize repository
-	userRepository := repo.NewUserRepo(dbs)
-	handlers.SetUserRepo(userRepository)
+	// Initialize repositories
+	userRepo := repo.NewUserRepo(dbConn)
+	handlers.SetUserRepo(userRepo)
 
 	// Initialize HTTP mux
 	mux := http.NewServeMux()
 
-	// Static assets
+	// Serve static files (CSS, JS, etc.)
 	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./frontend/assets/"))))
 
-	// Public routes
+	// Main routes
 	mux.HandleFunc("/", handlers.MainPageHandler)
-	mux.HandleFunc("/contact", handlers.ContactUsHandler)
 	mux.HandleFunc("/menu", handlers.MenuHandler)
+	mux.HandleFunc("/contact", handlers.ContactUsHandler)
 
-	// Authentication routes
+	// Auth routes
 	authMux := http.NewServeMux()
-	authMux.HandleFunc("/login", handlers.LoginHandler)              // Render login page or process login
-	authMux.HandleFunc("/register", handlers.SignUpHandler)          // Handle user registration
-	authMux.HandleFunc("/verify-email", handlers.VerifyEmailHandler) // Handle email verification
+	authMux.HandleFunc("/register", handlers.RegisterHandler)
+	authMux.HandleFunc("/verify-email", handlers.VerifyEmailHandler)
+	authMux.HandleFunc("/login", handlers.LoginHandler)
 	mux.Handle("/auth/", http.StripPrefix("/auth", authMux))
 
 	// Admin routes
 	adminMux := http.NewServeMux()
-	adminMux.Handle("/panel", middleware.RoleMiddleware(userRepository, "admin")(http.HandlerFunc(handlers.AdminPanelHandler)))
-	adminMux.Handle("/food", middleware.RoleMiddleware(userRepository, "admin")(http.HandlerFunc(handlers.AddOrUpdateFoodHandler)))
-	adminMux.Handle("/food/delete", middleware.RoleMiddleware(userRepository, "admin")(http.HandlerFunc(handlers.DeleteFoodHandler)))
-	adminMux.Handle("/add-food", middleware.RoleMiddleware(userRepository, "admin")(http.HandlerFunc(handlers.AddOrUpdateFoodHandler)))
-	adminMux.Handle("/change-role", middleware.RoleMiddleware(userRepository, "admin")(http.HandlerFunc(handlers.ChangeRoleHandler)))
+	adminMux.Handle("/panel", middleware.JWTMiddleware(middleware.RoleMiddleware("admin")(http.HandlerFunc(handlers.AdminPanelHandler))))
 	mux.Handle("/admin/", http.StripPrefix("/admin", adminMux))
 
-	rateLimitedMux := rateLimiter.Limit(mux)
-
-	// Start HTTP server
+	// Start the HTTP server
 	server := &http.Server{
 		Addr:    ":9078",
-		Handler: rateLimitedMux,
+		Handler: mux,
 	}
 
-	//Start server in goroutine
 	go func() {
-		log.Println("Listening on :9078")
+		log.Println("Server is listening on port 9078")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Could not start server: %s\n", err)
+			log.Fatalf("Could not start server: %v", err)
 		}
 	}()
 
-	//Gracefully shutdown
+	// Graceful shutdown
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 	<-signalChan
-	log.Println("Shutting down the server!")
+	log.Println("Shutting down the server...")
 
-	cancel()
-	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer shutdownCancel()
-	err = server.Shutdown(shutdownCtx)
-	if err != nil {
-		logger.Error("Could not shut down the server!!!", map[string]interface{}{"Error:": err})
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		logger.Error("Server shutdown error", map[string]interface{}{"error": err})
 	}
-
-	logger.Warn("Server gracefully stopped", map[string]interface{}{"Module": "main"})
+	logger.Warn("Server stopped gracefully", nil)
 }

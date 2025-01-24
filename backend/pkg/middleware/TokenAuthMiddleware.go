@@ -1,11 +1,6 @@
 package middleware
 
-import (
-	"DeliFood/backend/pkg/repo"
-	"net/http"
-	"strings"
-)
-
+/*
 func TokenAuthMiddleware(userRepo *repo.UserRepo, next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		authHeader := r.Header.Get("Authorization")
@@ -32,3 +27,4 @@ func TokenAuthMiddleware(userRepo *repo.UserRepo, next http.Handler) http.Handle
 		next.ServeHTTP(w, r)
 	})
 }
+*/

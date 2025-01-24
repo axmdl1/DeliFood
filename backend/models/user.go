@@ -5,8 +5,8 @@ type User struct {
 	UserName         string `json:"name"`
 	Password         string `json:"password"`
 	Email            string `json:"email"`
-	VerificationCode string
+	VerificationCode string `json:"verificationCode"`
 	IsVerified       bool   `json:"is_verified"`
-	Token            string `json:"token"`
 	Role             string `json:"role"`
+	Token            string `json:"token"`
 }

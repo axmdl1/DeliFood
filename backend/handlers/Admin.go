@@ -1,43 +1,24 @@
 package handlers
 
 import (
-	"DeliFood/backend/models"
-	"encoding/json"
-	"html/template"
+	"fmt"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 func AdminPanelHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	userID := r.Context().Value("user_id")
+	role := r.Context().Value("role")
+
+	if role != "admin" {
+		http.Error(w, "Forbidden: Admins only", http.StatusForbidden)
 		return
 	}
 
-	// Fetch all foods from the database
-	foods, err := userRepo.GetFood("", "") // Fetch without filters and sorting
-	if err != nil {
-		http.Error(w, "Failed to load foods: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	// Pass foods to the template
-	data := struct {
-		Foods []models.Food
-	}{
-		Foods: foods,
-	}
-
-	// Render the template
-	tmpl := template.Must(template.ParseFiles("./frontend/admin.html"))
-	err = tmpl.Execute(w, data)
-	if err != nil {
-		http.Error(w, "Failed to render admin panel: "+err.Error(), http.StatusInternalServerError)
-	}
+	fmt.Fprintf(w, "Welcome Admin! User ID: %v, Role: %v", userID, role)
 }
 
-func AddOrUpdateFoodHandler(w http.ResponseWriter, r *http.Request) {
+/*func AddOrUpdateFoodHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
@@ -78,7 +59,7 @@ func AddOrUpdateFoodHandler(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 	w.Write([]byte("Food saved successfully"))
-}
+}*/
 
 func DeleteFoodHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {

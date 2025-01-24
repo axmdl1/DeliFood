@@ -1,70 +1,33 @@
-document.getElementById("loginForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
+document.getElementById("loginForm").addEventListener("submit", function (e) {
+    e.preventDefault();
 
     const email = document.querySelector('input[name="email"]').value;
     const password = document.querySelector('input[name="password"]').value;
 
-    try {
-        const response = await fetch("/auth/login", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: new URLSearchParams({ email, password }),
+    fetch('/auth/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+        },
+        body: new URLSearchParams({
+            email: email,
+            password: password,
+        }),
+    })
+        .then(response => response.json())
+        .then(data => {
+            if (data.token) {
+                localStorage.setItem('token', data.token);  // Save token to localStorage (for example)
+                if (data.role === "admin") {
+                    window.location.href = "/admin/panel"; // Redirect to admin panel if admin
+                } else {
+                    window.location.href = "/"; // Redirect to main page if user
+                }
+            } else {
+                alert('Login failed. Please check your credentials.');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
         });
-
-        if (response.ok) {
-            const data = await response.json();
-            alert(data.message);
-
-            // Store token in localStorage
-            localStorage.setItem("token", data.token);
-
-            // Redirect to /admin/panel
-            window.location.href = "/admin/panel";
-        } else {
-            const errorData = await response.json();
-            alert(`Error: ${errorData.message}`);
-        }
-    } catch (error) {
-        console.error("Login failed:", error);
-        alert("An error occurred during login.");
-    }
-});
-
-
-document.getElementById("registerForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
-
-    const email = document.querySelector('input[name="email"]').value;
-    const user = document.querySelector('input[name="user"]').value;
-    const password = document.querySelector('input[name="password"]').value;
-
-
-    try {
-        const response = await fetch("/auth/login", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/x-www-form-urlencoded",
-            },
-            body: new URLSearchParams({ email, password }),
-        });
-
-        if (response.ok) {
-            const data = await response.json();
-            alert(data.message);
-
-            // Store token in localStorage
-            localStorage.setItem("token", data.token);
-
-            // Redirect to /admin/panel
-            window.location.href = "/admin/panel";
-        } else {
-            const errorData = await response.json();
-            alert(`Error: ${errorData.message}`);
-        }
-    } catch (error) {
-        console.error("Login failed:", error);
-        alert("An error occurred during login.");
-    }
 });
