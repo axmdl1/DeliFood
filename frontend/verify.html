@@ -1,71 +1,23 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="stylesheet" href="/assets/css/authStyle.css">
-    <title>Verify your account</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="ie=edge">
+  <title>Verifycation</title>
+  <link rel="stylesheet" href="/assets/css/authStyle.css">
 </head>
 <body>
-<div class="login-box">
-    <div class="login-header">
-        <header>Verify your account</header>
+  <div class="container">
+    <input type="checkbox" id="check">
+    <div class="login form">
+      <header>Verifycate your account</header>
+      <form id="login" action="/auth/#" method="post">
+        <input type="text" placeholder="Enter code">
+        <input type="button" class="button" value="Submit">
+      </form>
     </div>
-    <form id="verifyForm" action="/auth/verify-email" method="post">
-        <div class="input-box">
-            <input type="text" name="email" class="input-field" placeholder="Email" autocomplete="off" required id="email">
-        </div>
-        <div class="input-box">
-            <input type="text" name="code" class="input-field" placeholder="Code" autocomplete="off" required id="verificationCode">
-        </div>
-        <div class="input-submit">
-            <button type="submit" class="submit-btn" id="submit">Verify</button>
-        </div>
-    </form>
-</div>
-
-<script>
-    // This script handles the form submission
-    document.getElementById('verifyForm').addEventListener('submit', function(e) {
-        e.preventDefault(); // Prevents the form from submitting normally
-
-        // Grab the values from the form
-        const email = document.getElementById('email').value;
-        const code = document.getElementById('verificationCode').value;
-
-        // Validate inputs
-        if (!email || !code) {
-            alert("Both email and verification code are required.");
-            return;
-        }
-
-        // Make the fetch request to verify the email
-        fetch('/auth/verify-email', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: `email=${email}&code=${code}`
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Show success message
-                    alert(data.message);
-                    // Optionally, redirect to login or another page
-                    window.location.href = "/auth/login";
-                } else {
-                    // Show error message
-                    alert(data.message || 'Error verifying your email.');
-                }
-            })
-            .catch((error) => {
-                console.error('Error:', error);
-                alert('Error verifying your email. Please try again later.');
-            });
-    });
-</script>
-
+  </div>
+  <script src="assets/js/login.js"></script>
 </body>
 </html>
