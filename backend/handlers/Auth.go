@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"golang.org/x/crypto/bcrypt"
 	"html/template"
+	"log"
 	"net/http"
+	"net/url"
 )
 
 func RegisterHandler(w http.ResponseWriter, r *http.Request) {
@@ -21,65 +23,71 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 		email := r.FormValue("email")
 		username := r.FormValue("username")
 		password := r.FormValue("password")
+		checkPassword := r.FormValue("checkPassword")
 
-		if email == "" || username == "" || password == "" {
-			http.Error(w, "All fields are required", http.StatusBadRequest)
+		if checkPassword != password {
+			log.Println("Password does not match")
+			http.Error(w, "Password does not match", http.StatusUnauthorized)
+		} else {
+
+			if email == "" || username == "" || password == "" {
+				http.Error(w, "All fields are required", http.StatusBadRequest)
+				return
+			}
+
+			// Check if email or username already exists
+			exists, err := userRepo.CheckEmailOrUsernameExists(email, username)
+			if err != nil {
+				http.Error(w, "Internal server error", http.StatusInternalServerError)
+				return
+			}
+			if exists {
+				http.Error(w, "Email or username already exists", http.StatusBadRequest)
+				return
+			}
+
+			// Hash the password
+			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+			fmt.Println(string(hashedPassword))
+			if err != nil {
+				http.Error(w, "Failed to hash password", http.StatusInternalServerError)
+				return
+			}
+
+			// Generate a verification code
+			verificationCode := utils.GenerateVerificationCode()
+
+			// Save the user
+			user := models.User{
+				UserName:         username,
+				Email:            email,
+				Password:         string(hashedPassword),
+				VerificationCode: verificationCode,
+				IsVerified:       false,
+				Role:             "user", // Default role is user
+			}
+			err = userRepo.Register(user)
+			if err != nil {
+				http.Error(w, "Failed to save user", http.StatusInternalServerError)
+				return
+			}
+
+			// Send verification email
+			err = utils.SendVerificationEmail(email, verificationCode)
+			if err != nil {
+				http.Error(w, "Failed to send verification email", http.StatusInternalServerError)
+				return
+			}
+
+			// Redirect to the verification page
+			http.Redirect(w, r, "/auth/verify-email?email="+url.QueryEscape(email), http.StatusSeeOther)
 			return
 		}
-
-		// Check if email or username already exists
-		exists, err := userRepo.CheckEmailOrUsernameExists(email, username)
-		if err != nil {
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
-		if exists {
-			http.Error(w, "Email or username already exists", http.StatusBadRequest)
-			return
-		}
-
-		// Hash the password
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-		fmt.Println(string(hashedPassword))
-		if err != nil {
-			http.Error(w, "Failed to hash password", http.StatusInternalServerError)
-			return
-		}
-
-		// Generate a verification code
-		verificationCode := utils.GenerateVerificationCode()
-
-		// Save the user
-		user := models.User{
-			UserName:         username,
-			Email:            email,
-			Password:         string(hashedPassword),
-			VerificationCode: verificationCode,
-			IsVerified:       false,
-			Role:             "user", // Default role is user
-		}
-		err = userRepo.Register(user)
-		if err != nil {
-			http.Error(w, "Failed to save user", http.StatusInternalServerError)
-			return
-		}
-
-		// Send verification email
-		err = utils.SendVerificationEmail(email, verificationCode)
-		if err != nil {
-			http.Error(w, "Failed to send verification email", http.StatusInternalServerError)
-			return
-		}
-
-		// Redirect to login or show success message
-		w.WriteHeader(http.StatusCreated)
-		w.Write([]byte("Registration successful! Please verify your email."))
-		return
 	}
 
 	// If method is GET, render the register page
 	if r.Method == http.MethodGet {
-		tmpl := template.Must(template.ParseFiles("./frontend/register.html"))
+		tmpl := template.Must(template.ParseFiles("./frontend/auth.html"))
 		err := tmpl.Execute(w, nil)
 		if err != nil {
 			http.Error(w, "Failed to render page", http.StatusInternalServerError)
@@ -94,8 +102,20 @@ func RegisterHandler(w http.ResponseWriter, r *http.Request) {
 func VerifyEmailHandler(w http.ResponseWriter, r *http.Request) {
 	// If the method is GET, render the verification page
 	if r.Method == http.MethodGet {
+		// Fetch the email from the query parameter
+		email := r.URL.Query().Get("email")
+
+		// If email is missing, show an error
+		if email == "" {
+			http.Error(w, "Email is missing", http.StatusBadRequest)
+			return
+		}
+
+		// Pass the email to the template to prefill the form (optional)
 		tmpl := template.Must(template.ParseFiles("./frontend/verify.html"))
-		err := tmpl.Execute(w, nil)
+		err := tmpl.Execute(w, map[string]string{
+			"Email": email,
+		})
 		if err != nil {
 			http.Error(w, "Failed to render verification page: "+err.Error(), http.StatusInternalServerError)
 		}
@@ -103,37 +123,54 @@ func VerifyEmailHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If the method is POST, process the email verification
-	email := r.FormValue("email")
-	verificationCode := r.FormValue("code")
+	if r.Method == http.MethodPost {
+		err := r.ParseForm()
+		if err != nil {
+			http.Error(w, "Invalid form data", http.StatusBadRequest)
+			return
+		}
 
-	if email == "" || verificationCode == "" {
-		http.Error(w, "Missing email or verification code", http.StatusBadRequest)
+		// Extract form values
+		email := r.FormValue("email")
+		verificationCode := r.FormValue("code")
+
+		// Validate the form fields
+		if email == "" || verificationCode == "" {
+			http.Error(w, "Missing email or verification code", http.StatusBadRequest)
+			return
+		}
+
+		// Fetch the user from the database
+		user, err := userRepo.GetUserByEmail(email)
+		if err != nil {
+			http.Error(w, "User not found", http.StatusNotFound)
+			return
+		}
+
+		// Check if the provided verification code matches the one stored
+		if user.VerificationCode != verificationCode {
+			http.Error(w, "Invalid verification code", http.StatusBadRequest)
+			return
+		}
+
+		// Mark the user as verified
+		err = userRepo.UpdateVerificationStatus(user.ID, true)
+		if err != nil {
+			http.Error(w, "Error updating verification status", http.StatusInternalServerError)
+			return
+		}
+
+		// Check user role and redirect accordingly
+		if user.Role == "admin" {
+			http.Redirect(w, r, "/admin/panel", http.StatusSeeOther)
+		} else {
+			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+		}
 		return
 	}
 
-	// Fetch user from the database
-	user, err := userRepo.GetUserByEmail(email)
-	if err != nil {
-		http.Error(w, "User not found", http.StatusNotFound)
-		return
-	}
-
-	// Compare the provided verification code with the one stored in the database
-	if user.VerificationCode != verificationCode {
-		http.Error(w, "Invalid verification code", http.StatusBadRequest)
-		return
-	}
-
-	// Mark the user as verified
-	err = userRepo.UpdateVerificationStatus(user.ID, true)
-	if err != nil {
-		http.Error(w, "Error updating verification status", http.StatusInternalServerError)
-		return
-	}
-
-	// Respond to the client
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Your email has been verified successfully!"))
+	// Handle other HTTP methods
+	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
 func LoginHandler(w http.ResponseWriter, r *http.Request) {

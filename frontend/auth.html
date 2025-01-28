@@ -7,7 +7,7 @@
   <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>Login & Registration Form</title>
   <!---Custom CSS File--->
-  <link rel="stylesheet" href="./assets/css/authStyle.css">
+  <link rel="stylesheet" href="/assets/css/authStyle.css">
 </head>
 <body>
   <div class="container">
@@ -15,9 +15,9 @@
     <div class="login form">
       <header>Login</header>
       <form id="login" action="/auth/login" method="post">
-        <input type="text" placeholder="Enter your email">
-        <input type="password" placeholder="Enter your password">
-        <input type="button" class="button" value="Login">
+        <input type="text" name="email" placeholder="Enter your email">
+        <input type="password" name="password" placeholder="Enter your password">
+        <input type="submit" class="button" value="Login">
       </form>
       <div class="signup">
         <span class="signup">Don't have an account?
@@ -28,10 +28,11 @@
     <div class="registration form">
       <header>Signup</header>
       <form  id="signup" action="/auth/register" method="post">
-        <input type="text" placeholder="Enter your email">
-        <input type="password" placeholder="Create a password">
-        <input type="password" placeholder="Confirm your password">
-        <input type="button" class="button" value="Signup">
+        <input type="text" name="email" placeholder="Enter your email">
+        <input type="text" name="username" placeholder="Enter your Username">
+        <input type="password" name="password" placeholder="Create a password">
+        <input type="password" name="checkPassword" placeholder="Confirm your password">
+        <input type="submit" class="button" value="Signup">
       </form>
       <div class="signup">
         <span class="signup">Already have an account?
@@ -40,6 +41,5 @@
       </div>
     </div>
   </div>
-  <script src="assets/js/login.js"></script>
 </body>
 </html>

@@ -4,7 +4,6 @@ import (
 	"DeliFood/backend/handlers"
 	"DeliFood/backend/pkg/db"
 	"DeliFood/backend/pkg/logger"
-	"DeliFood/backend/pkg/middleware"
 	"DeliFood/backend/pkg/repo"
 	"DeliFood/backend/utils"
 	"context"
@@ -61,13 +60,14 @@ func main() {
 	// Auth routes
 	authMux := http.NewServeMux()
 	authMux.HandleFunc("/register", handlers.RegisterHandler)
-	authMux.HandleFunc("/verify-email", handlers.VerifyEmailHandler)
 	authMux.HandleFunc("/login", handlers.LoginHandler)
+	authMux.HandleFunc("/verify-email", handlers.VerifyEmailHandler)
 	mux.Handle("/auth/", http.StripPrefix("/auth", authMux))
 
 	// Admin routes
 	adminMux := http.NewServeMux()
-	adminMux.Handle("/panel", middleware.JWTMiddleware(middleware.RoleMiddleware("admin")(http.HandlerFunc(handlers.AdminPanelHandler))))
+	//adminMux.Handle("/panel", middleware.JWTMiddleware(middleware.RoleMiddleware("admin")(http.HandlerFunc(handlers.AdminPanelHandler))))
+	adminMux.HandleFunc("/panel", handlers.AdminPanelHandler)
 	mux.Handle("/admin/", http.StripPrefix("/admin", adminMux))
 
 	// Start the HTTP server

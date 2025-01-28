@@ -13,8 +13,9 @@
     <div class="login form">
       <header>Verifycate your account</header>
       <form id="login" action="/auth/#" method="post">
-        <input type="text" placeholder="Enter code">
-        <input type="button" class="button" value="Submit">
+        <input type="email" name="email" value="{{.Email}}" readonly>
+        <input type="text" name="code" placeholder="Enter code">
+        <input type="submit" class="button" value="Submit">
       </form>
     </div>
   </div>
