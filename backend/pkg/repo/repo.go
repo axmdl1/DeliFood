@@ -54,8 +54,8 @@ func (ur *UserRepo) Register(user models.User) error {
 	return err
 }
 
-func (ur *UserRepo) UpdateVerificationStatus(userID int, isVerified bool) error {
-	_, err := ur.DB.Exec(`UPDATE users SET isverified = $1 WHERE id = $2`, isVerified, userID)
+func (ur *UserRepo) UpdateVerificationStatus(email string, isVerified bool) error {
+	_, err := ur.DB.Exec(`UPDATE users SET isverified = $1 WHERE email = $2`, isVerified, email)
 	return err
 }
 

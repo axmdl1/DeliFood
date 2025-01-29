@@ -154,7 +154,7 @@ func VerifyEmailHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Mark the user as verified
-		err = userRepo.UpdateVerificationStatus(user.ID, true)
+		err = userRepo.VerifyEmail(email, verificationCode)
 		if err != nil {
 			http.Error(w, "Error updating verification status", http.StatusInternalServerError)
 			return
@@ -164,7 +164,7 @@ func VerifyEmailHandler(w http.ResponseWriter, r *http.Request) {
 		if user.Role == "admin" {
 			http.Redirect(w, r, "/admin/panel", http.StatusSeeOther)
 		} else {
-			http.Redirect(w, r, "/auth/login", http.StatusSeeOther)
+			http.Redirect(w, r, "/", http.StatusSeeOther)
 		}
 		return
 	}
@@ -198,15 +198,25 @@ func LoginHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// Generate JWT token
 		token, err := utils.GenerateJWT(user.ID, user.Email, user.Role)
 		if err != nil {
 			http.Error(w, "Failed to generate token", http.StatusInternalServerError)
 			return
 		}
 
+		// Redirect based on the user role
+		if user.Role == "admin" {
+			http.Redirect(w, r, "/admin/panel", http.StatusSeeOther)
+		} else {
+			http.Redirect(w, r, "/", http.StatusSeeOther)
+		}
+
+		// Set JWT token in response (optional, if you want to send token in response body)
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte(fmt.Sprintf(`{"token": "%s", "role": "%s"}`, token, user.Role)))
+		return
 	}
 
 	// If the request method is not GET or POST, return a 405 Method Not Allowed error
