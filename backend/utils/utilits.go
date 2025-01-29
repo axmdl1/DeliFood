@@ -3,6 +3,7 @@ package utils
 import (
 	"fmt"
 	"gopkg.in/gomail.v2"
+	"html/template"
 	"math/rand"
 	"os"
 	"time"
@@ -77,4 +78,16 @@ func SendVerificationEmail(email, code string) error {
 
 	dialer := gomail.NewDialer("smtp.mail.ru", 587, "mr.akhmedali@bk.ru", "LVWZUunmUvMW8giSXLe0")
 	return dialer.DialAndSend(mail)
+}
+
+var TmplFuncs = template.FuncMap{
+	"add": func(x, y int) int { return x + y },
+	"sub": func(x, y int) int { return x - y },
+	"iter": func(n int) []int {
+		result := make([]int, n)
+		for i := 0; i < n; i++ {
+			result[i] = i + 1
+		}
+		return result
+	},
 }

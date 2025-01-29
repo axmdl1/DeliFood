@@ -4,27 +4,27 @@ import (
 	"DeliFood/backend/handlers"
 	"DeliFood/backend/pkg/db"
 	"DeliFood/backend/pkg/logger"
+	"DeliFood/backend/pkg/middleware"
 	"DeliFood/backend/pkg/repo"
 	"DeliFood/backend/utils"
 	"context"
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
-
-	"github.com/joho/godotenv"
-	_ "github.com/lib/pq"
 )
 
 func main() {
 	// Load environment variables
-	err := godotenv.Load(".env")
-	if err != nil {
+	if err := godotenv.Load(".env"); err != nil {
 		log.Println("No .env file found. Using system environment variables.")
 	}
 
+	// Initialize JWT secret
 	utils.InitJWTSecret()
 
 	// Initialize logger
@@ -34,7 +34,7 @@ func main() {
 		"status": "success",
 	})
 
-	// Load database config and connect to the database
+	// Load database config and connect
 	cfg := db.LoadConfigFromEnv(logger)
 	dbConn, err := db.NewDB(cfg, logger)
 	if err != nil {
@@ -46,44 +46,58 @@ func main() {
 	userRepo := repo.NewUserRepo(dbConn)
 	handlers.SetUserRepo(userRepo)
 
-	// Initialize HTTP mux
-	mux := http.NewServeMux()
+	// Initialize Gin router
+	r := gin.Default()
 
-	// Serve static files (CSS, JS, etc.)
-	mux.Handle("/assets/", http.StripPrefix("/assets/", http.FileServer(http.Dir("./frontend/assets/"))))
+	r.SetFuncMap(utils.TmplFuncs)
 
-	// Main routes
-	mux.HandleFunc("/", handlers.MainPageHandler)
-	mux.HandleFunc("/menu", handlers.MenuHandler)
-	mux.HandleFunc("/contact", handlers.ContactUsHandler)
+	// Load HTML templates
+	r.LoadHTMLGlob("frontend/*.html")
 
-	// Auth routes
-	authMux := http.NewServeMux()
-	authMux.HandleFunc("/register", handlers.RegisterHandler)
-	authMux.HandleFunc("/login", handlers.LoginHandler)
-	authMux.HandleFunc("/verify-email", handlers.VerifyEmailHandler)
-	mux.Handle("/auth/", http.StripPrefix("/auth", authMux))
+	// Serve static assets (CSS, JS, Images)
+	r.Static("/assets", "./frontend/assets")
 
-	// Admin routes
-	adminMux := http.NewServeMux()
-	//adminMux.Handle("/panel", middleware.JWTMiddleware(middleware.RoleMiddleware("admin")(http.HandlerFunc(handlers.AdminPanelHandler))))
-	adminMux.HandleFunc("/panel", handlers.AdminPanelHandler)
-	mux.Handle("/admin/", http.StripPrefix("/admin", adminMux))
+	// Initialize Rate Limiter Middleware (e.g., 5 requests/sec, burst 10)
+	rateLimiter := middleware.NewRateLimiter(5, 10, logger)
+	r.Use(rateLimiter.LimitMiddleware())
 
-	// Start the HTTP server
+	// Public Routes
+	r.GET("/", handlers.MainPageHandler)
+	r.GET("/menu", handlers.MenuHandler)
+	r.POST("/contact", handlers.ContactUsHandler)
+
+	// Authentication Routes
+	authRoutes := r.Group("/auth")
+	{
+		authRoutes.GET("/register", handlers.RegisterHandler)
+		authRoutes.POST("/register", handlers.RegisterHandler)
+		authRoutes.GET("/verify-email", handlers.VerifyEmailHandler)
+		authRoutes.POST("/verify-email", handlers.VerifyEmailHandler)
+		authRoutes.GET("/login", handlers.LoginHandler)
+		authRoutes.POST("/login", handlers.LoginHandler)
+	}
+
+	// Admin Routes (Protected)
+	adminRoutes := r.Group("/admin")
+	adminRoutes.Use(middleware.RoleMiddleware("admin")) // Only allow admins
+	{
+		adminRoutes.GET("/panel", handlers.AdminPanelHandler)
+	}
+
+	// Start HTTP Server with graceful shutdown
 	server := &http.Server{
 		Addr:    ":9078",
-		Handler: mux,
+		Handler: r,
 	}
 
 	go func() {
-		log.Println("Server is listening on port 9078")
+		log.Println("Server is running on port 9078")
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("Could not start server: %v", err)
 		}
 	}()
 
-	// Graceful shutdown
+	// Graceful Shutdown
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 	<-signalChan

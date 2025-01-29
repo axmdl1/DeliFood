@@ -1,21 +1,25 @@
 package handlers
 
 import (
-	"fmt"
 	"net/http"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
-func AdminPanelHandler(w http.ResponseWriter, r *http.Request) {
-	userID := r.Context().Value("user_id")
-	role := r.Context().Value("role")
-
-	if role != "admin" {
-		http.Error(w, "Forbidden: Admins only", http.StatusForbidden)
+// AdminPanelHandler serves the admin dashboard
+func AdminPanelHandler(c *gin.Context) {
+	// Fetch all foods from the database (without filters and sorting)
+	foods, err := userRepo.GetFood("", "")
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load foods: " + err.Error()})
 		return
 	}
 
-	fmt.Fprintf(w, "Welcome Admin! User ID: %v, Role: %v", userID, role)
+	// Render the admin panel template with food data
+	c.HTML(http.StatusOK, "admin.html", gin.H{
+		"Foods": foods,
+	})
 }
 
 /*func AddOrUpdateFoodHandler(w http.ResponseWriter, r *http.Request) {

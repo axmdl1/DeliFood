@@ -4,221 +4,179 @@ import (
 	"DeliFood/backend/models"
 	"DeliFood/backend/utils"
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
-	"html/template"
 	"log"
 	"net/http"
-	"net/url"
+
+	"github.com/gin-gonic/gin"
+	"golang.org/x/crypto/bcrypt"
 )
 
-func RegisterHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		// Parse form values
-		err := r.ParseForm()
-		if err != nil {
-			http.Error(w, "Invalid form data", http.StatusBadRequest)
-			return
-		}
-
-		email := r.FormValue("email")
-		username := r.FormValue("username")
-		password := r.FormValue("password")
-		checkPassword := r.FormValue("checkPassword")
-
-		if checkPassword != password {
-			log.Println("Password does not match")
-			http.Error(w, "Password does not match", http.StatusUnauthorized)
-		} else {
-
-			if email == "" || username == "" || password == "" {
-				http.Error(w, "All fields are required", http.StatusBadRequest)
-				return
-			}
-
-			// Check if email or username already exists
-			exists, err := userRepo.CheckEmailOrUsernameExists(email, username)
-			if err != nil {
-				http.Error(w, "Internal server error", http.StatusInternalServerError)
-				return
-			}
-			if exists {
-				http.Error(w, "Email or username already exists", http.StatusBadRequest)
-				return
-			}
-
-			// Hash the password
-			hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-			fmt.Println(string(hashedPassword))
-			if err != nil {
-				http.Error(w, "Failed to hash password", http.StatusInternalServerError)
-				return
-			}
-
-			// Generate a verification code
-			verificationCode := utils.GenerateVerificationCode()
-
-			// Save the user
-			user := models.User{
-				UserName:         username,
-				Email:            email,
-				Password:         string(hashedPassword),
-				VerificationCode: verificationCode,
-				IsVerified:       false,
-				Role:             "user", // Default role is user
-			}
-			err = userRepo.Register(user)
-			if err != nil {
-				http.Error(w, "Failed to save user", http.StatusInternalServerError)
-				return
-			}
-
-			// Send verification email
-			err = utils.SendVerificationEmail(email, verificationCode)
-			if err != nil {
-				http.Error(w, "Failed to send verification email", http.StatusInternalServerError)
-				return
-			}
-
-			// Redirect to the verification page
-			http.Redirect(w, r, "/auth/verify-email?email="+url.QueryEscape(email), http.StatusSeeOther)
-			return
-		}
-	}
-
-	// If method is GET, render the register page
-	if r.Method == http.MethodGet {
-		tmpl := template.Must(template.ParseFiles("./frontend/auth.html"))
-		err := tmpl.Execute(w, nil)
-		if err != nil {
-			http.Error(w, "Failed to render page", http.StatusInternalServerError)
-		}
+// RegisterHandler handles user registration
+func RegisterHandler(c *gin.Context) {
+	if c.Request.Method == http.MethodGet {
+		c.HTML(http.StatusOK, "auth.html", nil)
 		return
 	}
 
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	var form struct {
+		Email         string `form:"email" binding:"required"`
+		Username      string `form:"username" binding:"required"`
+		Password      string `form:"password" binding:"required"`
+		CheckPassword string `form:"checkPassword" binding:"required"`
+	}
+
+	if err := c.ShouldBind(&form); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "All fields are required"})
+		return
+	}
+
+	if form.Password != form.CheckPassword {
+		log.Println("Password does not match")
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Passwords do not match"})
+		return
+	}
+
+	// Check if email or username exists
+	exists, err := userRepo.CheckEmailOrUsernameExists(form.Email, form.Username)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+		return
+	}
+	if exists {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Email or username already exists"})
+		return
+	}
+
+	// Hash password
+	hashedPassword, err := bcrypt.GenerateFromPassword([]byte(form.Password), bcrypt.DefaultCost)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
+		return
+	}
+
+	// Generate verification code
+	verificationCode := utils.GenerateVerificationCode()
+
+	// Create user object
+	user := models.User{
+		UserName:         form.Username,
+		Email:            form.Email,
+		Password:         string(hashedPassword),
+		VerificationCode: verificationCode,
+		IsVerified:       false,
+		Role:             "user", // Default role is user
+	}
+
+	// Save user
+	if err := userRepo.Register(user); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save user"})
+		return
+	}
+
+	// Send verification email
+	if err := utils.SendVerificationEmail(form.Email, verificationCode); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send verification email"})
+		return
+	}
+
+	// Redirect to verification page
+	c.Redirect(http.StatusSeeOther, "/auth/verify-email?email="+form.Email)
 }
 
-// VerifyEmailHandler renders verify.html or processes verification
-func VerifyEmailHandler(w http.ResponseWriter, r *http.Request) {
-	// If the method is GET, render the verification page
-	if r.Method == http.MethodGet {
-		// Fetch the email from the query parameter
-		email := r.URL.Query().Get("email")
+// VerifyEmailHandler processes email verification
+func VerifyEmailHandler(c *gin.Context) {
+	if c.Request.Method == http.MethodGet {
+		email := c.Query("email")
 
-		// If email is missing, show an error
 		if email == "" {
-			http.Error(w, "Email is missing", http.StatusBadRequest)
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Email is missing"})
 			return
 		}
 
-		// Pass the email to the template to prefill the form (optional)
-		tmpl := template.Must(template.ParseFiles("./frontend/verify.html"))
-		err := tmpl.Execute(w, map[string]string{
-			"Email": email,
-		})
-		if err != nil {
-			http.Error(w, "Failed to render verification page: "+err.Error(), http.StatusInternalServerError)
-		}
+		c.HTML(http.StatusOK, "verify.html", gin.H{"Email": email})
 		return
 	}
 
-	// If the method is POST, process the email verification
-	if r.Method == http.MethodPost {
-		err := r.ParseForm()
-		if err != nil {
-			http.Error(w, "Invalid form data", http.StatusBadRequest)
-			return
-		}
+	var form struct {
+		Email            string `form:"email" binding:"required"`
+		VerificationCode string `form:"code" binding:"required"`
+	}
 
-		// Extract form values
-		email := r.FormValue("email")
-		verificationCode := r.FormValue("code")
-
-		// Validate the form fields
-		if email == "" || verificationCode == "" {
-			http.Error(w, "Missing email or verification code", http.StatusBadRequest)
-			return
-		}
-
-		// Fetch the user from the database
-		user, err := userRepo.GetUserByEmail(email)
-		if err != nil {
-			http.Error(w, "User not found", http.StatusNotFound)
-			return
-		}
-
-		// Check if the provided verification code matches the one stored
-		if user.VerificationCode != verificationCode {
-			http.Error(w, "Invalid verification code", http.StatusBadRequest)
-			return
-		}
-
-		// Mark the user as verified
-		err = userRepo.VerifyEmail(email, verificationCode)
-		if err != nil {
-			http.Error(w, "Error updating verification status", http.StatusInternalServerError)
-			return
-		}
-
-		// Check user role and redirect accordingly
-		if user.Role == "admin" {
-			http.Redirect(w, r, "/admin/panel", http.StatusSeeOther)
-		} else {
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-		}
+	if err := c.ShouldBind(&form); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Missing email or verification code"})
 		return
 	}
 
-	// Handle other HTTP methods
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	// Fetch user from DB
+	user, err := userRepo.GetUserByEmail(form.Email)
+	if err != nil {
+		c.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+		return
+	}
+
+	// Verify code
+	if user.VerificationCode != form.VerificationCode {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid verification code"})
+		return
+	}
+
+	// Update verification status
+	if err := userRepo.VerifyEmail(form.Email, form.VerificationCode); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Error updating verification status"})
+		return
+	}
+
+	// Redirect based on user role
+	if user.Role == "admin" {
+		c.Redirect(http.StatusSeeOther, "/admin/panel")
+	} else {
+		c.Redirect(http.StatusSeeOther, "/")
+	}
 }
 
-func LoginHandler(w http.ResponseWriter, r *http.Request) {
-	// Allow GET method to render login page
-	if r.Method == http.MethodGet {
-		tmpl := template.Must(template.ParseFiles("./frontend/auth.html"))
-		err := tmpl.Execute(w, nil)
-		if err != nil {
-			http.Error(w, "Failed to render login page: "+err.Error(), http.StatusInternalServerError)
-		}
+// LoginHandler processes user login
+func LoginHandler(c *gin.Context) {
+	if c.Request.Method == http.MethodGet {
+		c.HTML(http.StatusOK, "auth.html", nil)
 		return
 	}
 
-	// Handle POST request for processing login
-	if r.Method == http.MethodPost {
-		email := r.FormValue("email")
-		password := r.FormValue("password")
+	var loginData struct {
+		Email    string `form:"email" binding:"required"`
+		Password string `form:"password" binding:"required"`
+	}
 
-		fmt.Println("Login attempt for email:", email) // Log for debugging
-
-		user, err := userRepo.Authenticate(email, password)
-		if err != nil {
-			fmt.Println("Login failed for email:", email, "Error:", err) // Log error
-			http.Error(w, "Login failed: "+err.Error(), http.StatusUnauthorized)
-			return
-		}
-
-		// Generate JWT token
-		token, err := utils.GenerateJWT(user.ID, user.Email, user.Role)
-		if err != nil {
-			http.Error(w, "Failed to generate token", http.StatusInternalServerError)
-			return
-		}
-
-		// Redirect based on the user role
-		if user.Role == "admin" {
-			http.Redirect(w, r, "/admin/panel", http.StatusSeeOther)
-		} else {
-			http.Redirect(w, r, "/", http.StatusSeeOther)
-		}
-
-		// Set JWT token in response (optional, if you want to send token in response body)
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(fmt.Sprintf(`{"token": "%s", "role": "%s"}`, token, user.Role)))
+	if err := c.ShouldBind(&loginData); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
 	}
 
-	// If the request method is not GET or POST, return a 405 Method Not Allowed error
-	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+	email := loginData.Email
+	password := loginData.Password
+
+	fmt.Println("Login attempt for email:", email) // Debugging log
+
+	user, err := userRepo.Authenticate(email, password)
+	if err != nil {
+		fmt.Println("Login failed for email:", email, "Error:", err)
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Login failed: " + err.Error()})
+		return
+	}
+
+	// Generate JWT token
+	token, err := utils.GenerateJWT(user.ID, user.Email, user.Role)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+		return
+	}
+
+	// Redirect based on user role
+	if user.Role == "admin" {
+		c.Redirect(http.StatusSeeOther, "/admin/panel")
+	} else {
+		c.Redirect(http.StatusSeeOther, "/")
+	}
+
+	// Return token as JSON (optional)
+	c.JSON(http.StatusOK, gin.H{"token": token, "role": user.Role})
 }

@@ -3,26 +3,18 @@ package handlers
 import (
 	"DeliFood/backend/models"
 	"DeliFood/backend/pkg/repo"
-	"database/sql"
 	"fmt"
-	"gopkg.in/gomail.v2"
+	"log"
 	"net/http"
 	"os"
 	"path/filepath"
 	"sort"
 	"strconv"
-	"text/template"
 
-	_ "github.com/lib/pq"
+	"github.com/gin-gonic/gin"
+	"gopkg.in/gomail.v2"
 )
 
-var dbs *sql.DB
-
-func SetDB(db *sql.DB) {
-	dbs = db
-}
-
-// Add UserRepository as a global variable
 var userRepo *repo.UserRepo
 
 // SetUserRepo sets the user repository instance
@@ -30,210 +22,156 @@ func SetUserRepo(r *repo.UserRepo) {
 	userRepo = r
 }
 
-func MainPageHandler(w http.ResponseWriter, r *http.Request) {
-	t, err := template.ParseFiles("frontend/index.html")
-	if err != nil {
-		fmt.Printf(err.Error())
-		return
-	}
-	t.ExecuteTemplate(w, "index.html", nil)
-}
-
-var tmplFuncs = template.FuncMap{
-	"add": func(x, y int) int { return x + y },
-	"sub": func(x, y int) int { return x - y },
-	"iter": func(n int) []int {
-		result := make([]int, n)
-		for i := 0; i < n; i++ {
-			result[i] = i + 1
-		}
-		return result
-	},
+// MainPageHandler serves the main index page
+func MainPageHandler(c *gin.Context) {
+	c.HTML(http.StatusOK, "index.html", nil)
 }
 
 const itemsPerPage = 12
 
-func MenuHandler(w http.ResponseWriter, r *http.Request) {
-	// Get query parameters for filtering, sorting, and pagination
-	category := r.URL.Query().Get("category")
-	sortParam := r.URL.Query().Get("sort")
-	pageQuery := r.URL.Query().Get("page")
-	page, err := strconv.Atoi(pageQuery)
+// MenuHandler handles the menu listing with sorting, filtering, and pagination
+func MenuHandler(c *gin.Context) {
+	category := c.Query("category")
+	sortParam := c.Query("sort")
+	page, err := strconv.Atoi(c.DefaultQuery("page", "1"))
 	if err != nil || page < 1 {
 		page = 1
 	}
 
 	// Fetch items from the database
-	foods, err := userRepo.GetFood(category, sortParam) // Use the `GetFoods` function
+	foods, err := userRepo.GetFood(category, sortParam)
 	if err != nil {
-		http.Error(w, "Failed to load menu items", http.StatusInternalServerError)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load menu items"})
 		return
 	}
 
 	// Filter by category
-	filteredFoods := []models.Food{}
+	filteredFoods := make([]models.Food, 0)
 	for _, food := range foods {
 		if category == "" || food.Category == category {
 			filteredFoods = append(filteredFoods, food)
 		}
 	}
 
-	// Sort by specified parameter
+	// Sort items
 	switch sortParam {
 	case "price-asc":
-		sort.Slice(filteredFoods, func(i, j int) bool {
-			return filteredFoods[i].Price < filteredFoods[j].Price
-		})
+		sort.Slice(filteredFoods, func(i, j int) bool { return filteredFoods[i].Price < filteredFoods[j].Price })
 	case "price-desc":
-		sort.Slice(filteredFoods, func(i, j int) bool {
-			return filteredFoods[i].Price > filteredFoods[j].Price
-		})
+		sort.Slice(filteredFoods, func(i, j int) bool { return filteredFoods[i].Price > filteredFoods[j].Price })
 	case "name":
-		sort.Slice(filteredFoods, func(i, j int) bool {
-			return filteredFoods[i].Name < filteredFoods[j].Name
-		})
+		sort.Slice(filteredFoods, func(i, j int) bool { return filteredFoods[i].Name < filteredFoods[j].Name })
 	}
 
-	// Calculate total items and pagination
+	// Pagination logic
 	totalItems := len(filteredFoods)
 	start := (page - 1) * itemsPerPage
-	end := start + itemsPerPage
 	if start > totalItems {
 		start = totalItems
 	}
+	end := start + itemsPerPage
 	if end > totalItems {
 		end = totalItems
 	}
 	paginatedItems := filteredFoods[start:end]
 
-	// Prepare data for the template
-	data := struct {
-		Items       []models.Food
-		CurrentPage int
-		TotalPages  int
-	}{
-		Items:       paginatedItems,
-		CurrentPage: page,
-		TotalPages:  (totalItems + itemsPerPage - 1) / itemsPerPage,
-	}
-
-	// Parse and execute the template
-	tmpl := template.Must(template.New("menu.html").Funcs(tmplFuncs).ParseFiles("./frontend/menu.html"))
-	err = tmpl.Execute(w, data)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-	}
+	// Render the menu template
+	c.HTML(http.StatusOK, "menu.html", gin.H{
+		"Items":       paginatedItems,
+		"CurrentPage": page,
+		"TotalPages":  (totalItems + itemsPerPage - 1) / itemsPerPage,
+	})
 }
 
-func ContactUsHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method == http.MethodPost {
-		err := r.ParseMultipartForm(10 << 20) // Allow files up to 10MB
-		if err != nil {
-			http.Error(w, fmt.Sprintf("Unable to process form data %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		name := r.FormValue("name")
-		email := r.FormValue("email")
-		subject := r.FormValue("subject")
-		message := r.FormValue("message")
-
-		if name == "" || email == "" || subject == "" || message == "" {
-			http.Error(w, "All fields are required", http.StatusBadRequest)
-			return
-		}
-
-		tempDir := "temp"
-		if _, err := os.Stat(tempDir); os.IsNotExist(err) {
-			err = os.Mkdir(tempDir, os.ModePerm)
-			if err != nil {
-				http.Error(w, "Failed to create directory for file storage", http.StatusInternalServerError)
-				return
-			}
-		}
-
-		file, header, err := r.FormFile("attachment")
-		var filePath string
-		if err == nil {
-			defer file.Close()
-
-			// Save the file to the server temporarily
-			filePath = filepath.Join("temp", header.Filename)
-			tempFile, err := os.Create(filePath)
-			if err != nil {
-				http.Error(w, "Failed to save file", http.StatusInternalServerError)
-				return
-			}
-			defer tempFile.Close()
-
-			// Write the uploaded file to the server
-			_, err = tempFile.ReadFrom(file)
-			if err != nil {
-				http.Error(w, "Failed to process file", http.StatusInternalServerError)
-				return
-			}
-		}
-
-		mail := gomail.NewMessage()
-		mail.SetHeader("From", "mr.akhmedali@bk.ru")
-		mail.SetHeader("To", "mr.akhmedali@bk.ru")
-		mail.SetHeader("Subject", fmt.Sprintf("Contact Us: %s", subject))
-		mail.SetHeader("Reply-To", email)
-		mail.SetBody("text/plain", fmt.Sprintf("From: %s\nEmail: %s\nMessage: %s", name, email, message))
-
-		if filePath != "" {
-			fmt.Println("Attaching file", filePath)
-			mail.Attach(filePath)
-		}
-
-		dialer := gomail.NewDialer("smtp.mail.ru", 587, "mr.akhmedali@bk.ru", "LVWZUunmUvMW8giSXLe0")
-		if err := dialer.DialAndSend(mail); err != nil {
-			http.Error(w, fmt.Sprintf("Failed to send email %v", err), http.StatusInternalServerError)
-			return
-		}
-
-		if filePath != "" {
-			os.Remove(filePath)
-		}
-
-		fmt.Fprint(w, "Email sent successfully!")
-	} else {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-	}
-}
-
-/*
-func AddFoodHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
+// ContactUsHandler processes contact form submissions
+func ContactUsHandler(c *gin.Context) {
+	if c.Request.Method != http.MethodPost {
+		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "Invalid request method"})
 		return
 	}
 
-	name := r.FormValue("name")
-	category := r.FormValue("category")
-	image := r.FormValue("image")
-	description := r.FormValue("description")
-	price := r.FormValue("price")
+	name := c.PostForm("name")
+	email := c.PostForm("email")
+	subject := c.PostForm("subject")
+	message := c.PostForm("message")
 
-	if name == "" || category == "" || image == "" || description == "" || price == "" {
-		http.Error(w, "All fields are required", http.StatusBadRequest)
+	if name == "" || email == "" || subject == "" || message == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "All fields are required"})
+		return
+	}
+
+	// Create temp directory for file uploads
+	tempDir := "temp"
+	if _, err := os.Stat(tempDir); os.IsNotExist(err) {
+		if err = os.Mkdir(tempDir, os.ModePerm); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create directory"})
+			return
+		}
+	}
+
+	// Handle file upload
+	file, err := c.FormFile("attachment")
+	var filePath string
+	if err == nil {
+		filePath = filepath.Join(tempDir, file.Filename)
+		if err := c.SaveUploadedFile(file, filePath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
+			return
+		}
+	}
+
+	// Prepare email
+	mail := gomail.NewMessage()
+	mail.SetHeader("From", "mr.akhmedali@bk.ru")
+	mail.SetHeader("To", "mr.akhmedali@bk.ru")
+	mail.SetHeader("Subject", fmt.Sprintf("Contact Us: %s", subject))
+	mail.SetHeader("Reply-To", email)
+	mail.SetBody("text/plain", fmt.Sprintf("From: %s\nEmail: %s\nMessage: %s", name, email, message))
+
+	// Attach file if exists
+	if filePath != "" {
+		log.Println("Attaching file:", filePath)
+		mail.Attach(filePath)
+	}
+
+	// Send email
+	dialer := gomail.NewDialer("smtp.mail.ru", 587, "mr.akhmedali@bk.ru", "LVWZUunmUvMW8giSXLe0")
+	if err := dialer.DialAndSend(mail); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
+		return
+	}
+
+	// Remove file after sending
+	if filePath != "" {
+		os.Remove(filePath)
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Email sent successfully!"})
+}
+
+// AddFoodHandler adds a new food item to the menu
+func AddFoodHandler(c *gin.Context) {
+	if c.Request.Method != http.MethodPost {
+		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "Invalid request method"})
+		return
+	}
+
+	var food models.Food
+	if err := c.ShouldBind(&food); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form data"})
+		return
+	}
+
+	if food.Name == "" || food.Category == "" || food.Image == "" || food.Description == "" || food.Price == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "All fields are required"})
 		return
 	}
 
 	// Save food item to the database
-	err := userRepo.AddFood(models.Food{
-		Name:        name,
-		Category:    category,
-		Image:       image,
-		Description: description,
-		Price:       price,
-	})
-	if err != nil {
-		http.Error(w, "Failed to add food item: "+err.Error(), http.StatusInternalServerError)
+	if err := userRepo.AddFood(food); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add food item"})
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	w.Write([]byte("Food item added successfully"))
+	c.JSON(http.StatusCreated, gin.H{"message": "Food item added successfully"})
 }
-*/

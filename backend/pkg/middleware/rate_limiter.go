@@ -2,10 +2,10 @@ package middleware
 
 import (
 	"DeliFood/backend/pkg/logger"
-	"net/http"
 	"sync"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"golang.org/x/time/rate"
 )
 
@@ -17,6 +17,7 @@ type RateLimiter struct {
 	log      *logger.Logger
 }
 
+// NewRateLimiter initializes a rate limiter middleware
 func NewRateLimiter(rps float64, burst int, log *logger.Logger) *RateLimiter {
 	return &RateLimiter{
 		limiters: make(map[string]*rate.Limiter),
@@ -43,33 +44,36 @@ func (rl *RateLimiter) getLimiter(ip string) *rate.Limiter {
 	return limiter
 }
 
-// cleanupLimiter removes the limiter for the IP after a timeout period
+// cleanupLimiter removes the limiter for an IP after a timeout period
 func (rl *RateLimiter) cleanupLimiter(ip string) {
 	time.Sleep(5 * time.Minute)
 	rl.mu.Lock()
-	defer rl.mu.Unlock()
 	delete(rl.limiters, ip)
+	rl.mu.Unlock()
 }
 
-func (rl *RateLimiter) Limit(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		ip := r.RemoteAddr
+// LimitMiddleware is a Gin middleware for rate limiting
+func (rl *RateLimiter) LimitMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		ip := c.ClientIP()
 		limiter := rl.getLimiter(ip)
 
 		if !limiter.Allow() {
 			retryAfter := limiter.Reserve().Delay()
+
 			rl.log.Warn("Rate limit exceeded", map[string]interface{}{
 				"ip":         ip,
-				"url":        r.URL.Path,
-				"method":     r.Method,
+				"url":        c.Request.URL.Path,
+				"method":     c.Request.Method,
 				"retryAfter": retryAfter.String(),
 			})
 
-			w.Header().Set("Retry-After", retryAfter.String())
-			http.Error(w, "Rate limit exceeded. Please retry later.", http.StatusTooManyRequests)
+			c.Header("Retry-After", retryAfter.String())
+			c.JSON(429, gin.H{"error": "Rate limit exceeded. Please retry later."})
+			c.Abort()
 			return
 		}
 
-		next.ServeHTTP(w, r)
-	})
+		c.Next()
+	}
 }

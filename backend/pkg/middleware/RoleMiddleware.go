@@ -4,32 +4,37 @@ import (
 	"DeliFood/backend/utils"
 	"net/http"
 	"strings"
+
+	"github.com/gin-gonic/gin"
 )
 
-func RoleMiddleware(allowedRoles ...string) func(handler http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			authHeader := r.Header.Get("Authorization")
-			if authHeader == "" {
-				http.Error(w, "Unauthorized: No token provided", http.StatusUnauthorized)
+// RoleMiddleware ensures only users with allowed roles can access a route
+func RoleMiddleware(allowedRoles ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: No token provided"})
+			c.Abort()
+			return
+		}
+
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		claims, err := utils.ValidateJWT(token)
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized: Invalid or expired token"})
+			c.Abort()
+			return
+		}
+
+		// Check if user's role is in the allowed roles
+		for _, role := range allowedRoles {
+			if claims.Role == role {
+				c.Next()
 				return
 			}
+		}
 
-			token := strings.TrimPrefix(authHeader, "Bearer ")
-			claims, err := utils.ValidateJWT(token)
-			if err != nil {
-				http.Error(w, "Unauthorized: Invalid or expired token", http.StatusUnauthorized)
-				return
-			}
-
-			for _, role := range allowedRoles {
-				if claims.Role == role {
-					next.ServeHTTP(w, r)
-					return
-				}
-			}
-
-			http.Error(w, "Forbidden: Insufficient permissions", http.StatusForbidden)
-		})
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden: Insufficient permissions"})
+		c.Abort()
 	}
 }
