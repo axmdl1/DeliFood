@@ -2,13 +2,16 @@ package utils
 
 import (
 	"fmt"
-	"gopkg.in/gomail.v2"
 	"math/rand"
 	"os"
 	"time"
 
+	"gopkg.in/gomail.v2"
+
 	"github.com/golang-jwt/jwt/v5"
 )
+
+var SendVerificationEmailFunc = SendVerificationEmail
 
 func GenerateVerificationCode() string {
 	rand.Seed(time.Now().UnixNano())

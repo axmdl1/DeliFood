@@ -22,6 +22,6 @@ func TestPasswordHashing(t *testing.T) {
 	// Проверка верификации пароля
 	err = bcrypt.CompareHashAndPassword(hashedPassword, []byte(password))
 	if err != nil {
-		t.Errorf("Password verification failed")
+		t.Errorf("Password рщverification failed")
 	}
 }
