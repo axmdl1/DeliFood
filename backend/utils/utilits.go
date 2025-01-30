@@ -27,6 +27,13 @@ type Claims struct {
 	jwt.RegisteredClaims
 }
 
+func (c *Claims) Valid() error {
+	if c.ExpiresAt.Time.Before(time.Now()) {
+		return jwt.ErrTokenExpired
+	}
+	return nil
+}
+
 // jwtSecret is used to sign and validate JWT tokens
 var jwtSecret string
 
