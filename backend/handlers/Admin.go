@@ -9,14 +9,21 @@ import (
 
 // AdminPanelHandler serves the admin dashboard
 func AdminPanelHandler(c *gin.Context) {
-	// Fetch all foods from the database (without filters and sorting)
-	foods, err := userRepo.GetFood("", "")
+	// Step 1: Fetch the user role from the context (set by middleware or JWT parsing)
+	/*role, exists := c.Get("role")
+	if !exists || role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "You do not have permission to access this page"})
+		return
+	}*/
+
+	// Step 2: Fetch food items or other admin-related data from the repository
+	foods, err := userRepo.GetFood("", "") // Fetch all foods (you can filter/sort if needed)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load foods: " + err.Error()})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch food items"})
 		return
 	}
 
-	// Render the admin panel template with food data
+	// Step 3: Render the admin panel page with the food data
 	c.HTML(http.StatusOK, "admin.html", gin.H{
 		"Foods": foods,
 	})

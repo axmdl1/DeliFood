@@ -3,12 +3,10 @@ package handlers
 import (
 	"DeliFood/backend/models"
 	"DeliFood/backend/utils"
-	"fmt"
-	"log"
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 	"golang.org/x/crypto/bcrypt"
+	"log"
+	"net/http"
 )
 
 // RegisterHandler handles user registration
@@ -136,6 +134,7 @@ func VerifyEmailHandler(c *gin.Context) {
 
 // LoginHandler processes user login
 func LoginHandler(c *gin.Context) {
+	// Allow GET method to render login page
 	if c.Request.Method == http.MethodGet {
 		c.HTML(http.StatusOK, "auth.html", nil)
 		return
@@ -146,6 +145,7 @@ func LoginHandler(c *gin.Context) {
 		Password string `form:"password" binding:"required"`
 	}
 
+	// Validate the input data (email and password)
 	if err := c.ShouldBind(&loginData); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
 		return
@@ -154,12 +154,16 @@ func LoginHandler(c *gin.Context) {
 	email := loginData.Email
 	password := loginData.Password
 
-	fmt.Println("Login attempt for email:", email) // Debugging log
-
+	// Authenticate user
 	user, err := userRepo.Authenticate(email, password)
 	if err != nil {
-		fmt.Println("Login failed for email:", email, "Error:", err)
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Login failed: " + err.Error()})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		return
+	}
+
+	// Check if the user is verified
+	if !user.IsVerified {
+		c.JSON(http.StatusForbidden, gin.H{"error": "User is not verified"})
 		return
 	}
 
@@ -170,13 +174,9 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// Redirect based on user role
-	if user.Role == "admin" {
-		c.Redirect(http.StatusSeeOther, "/admin/panel")
-	} else {
-		c.Redirect(http.StatusSeeOther, "/")
-	}
-
-	// Return token as JSON (optional)
-	c.JSON(http.StatusOK, gin.H{"token": token, "role": user.Role})
+	// Return the token and role in the response body
+	c.JSON(http.StatusOK, gin.H{
+		"token": token,
+		"role":  user.Role,
+	})
 }

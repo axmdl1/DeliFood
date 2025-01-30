@@ -10,3 +10,9 @@ type User struct {
 	Role             string `json:"role"`
 	Token            string `json:"token"`
 }
+type Role string
+
+const (
+	RoleAdmin Role = "admin"
+	RoleUser  Role = "user"
+)

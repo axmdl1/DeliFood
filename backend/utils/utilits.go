@@ -16,7 +16,7 @@ func GenerateVerificationCode() string {
 	return fmt.Sprintf("%06d", rand.Intn(1000000))
 }
 
-var jwtKey = []byte("your_secret_key")
+var jwtKey = []byte(os.Getenv("JWT_SECRET"))
 
 type Claims struct {
 	UserID int    `json:"user_id"`
@@ -41,7 +41,7 @@ func GetJWTSecret() string {
 
 // GenerateJWT generates a JWT token
 func GenerateJWT(userID int, email, role string) (string, error) {
-	expirationTime := time.Now().Add(24 * time.Hour)
+	expirationTime := time.Now().Add(12 * time.Hour)
 	claims := &Claims{
 		UserID: userID,
 		Email:  email,

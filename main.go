@@ -79,7 +79,7 @@ func main() {
 
 	// Admin Routes (Protected)
 	adminRoutes := r.Group("/admin")
-	adminRoutes.Use(middleware.RoleMiddleware("admin")) // Only allow admins
+	adminRoutes.Use(middleware.AuthMiddleware())
 	{
 		adminRoutes.GET("/panel", handlers.AdminPanelHandler)
 	}

@@ -1,45 +1,100 @@
 <!DOCTYPE html>
-<!-- Coding By CodingNepal - codingnepalweb.com -->
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta http-equiv="X-UA-Compatible" content="ie=edge">
   <title>Login & Registration Form</title>
-  <!---Custom CSS File--->
   <link rel="stylesheet" href="/assets/css/authStyle.css">
 </head>
 <body>
-  <div class="container">
-    <input type="checkbox" id="check">
-    <div class="login form">
-      <header>Login</header>
-      <form id="login" action="/auth/login" method="post">
-        <input type="text" name="email" placeholder="Enter your email">
-        <input type="password" name="password" placeholder="Enter your password">
-        <input type="submit" class="button" value="Login">
-      </form>
-      <div class="signup">
+<div class="container">
+  <input type="checkbox" id="check">
+  <div class="login form">
+    <header>Login</header>
+    <form id="loginForm">
+      <input type="text" name="email" placeholder="Enter your email">
+      <input type="password" name="password" placeholder="Enter your password">
+      <input type="submit" class="button" value="Login">
+    </form>
+    <div class="signup">
         <span class="signup">Don't have an account?
          <label for="check">Signup</label>
         </span>
-      </div>
     </div>
-    <div class="registration form">
-      <header>Signup</header>
-      <form  id="signup" action="/auth/register" method="post">
-        <input type="text" name="email" placeholder="Enter your email">
-        <input type="text" name="username" placeholder="Enter your Username">
-        <input type="password" name="password" placeholder="Create a password">
-        <input type="password" name="checkPassword" placeholder="Confirm your password">
-        <input type="submit" class="button" value="Signup">
-      </form>
-      <div class="signup">
+  </div>
+  <div class="registration form">
+    <header>Signup</header>
+    <form id="signupForm">
+      <input type="text" name="email" placeholder="Enter your email">
+      <input type="text" name="username" placeholder="Enter your Username">
+      <input type="password" name="password" placeholder="Create a password">
+      <input type="password" name="checkPassword" placeholder="Confirm your password">
+      <input type="submit" class="button" value="Signup">
+    </form>
+    <div class="signup">
         <span class="signup">Already have an account?
          <label for="check">Login</label>
         </span>
-      </div>
     </div>
   </div>
+</div>
+
+<script>
+  // Handle login form submission
+  document.getElementById('loginForm').addEventListener('submit', async function (e) {
+    e.preventDefault(); // Prevent default form submission
+
+    const formData = new FormData(this);
+    const response = await fetch('/auth/login', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: formData.get('email'),
+        password: formData.get('password'),
+      }),
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      // Store the token in localStorage
+      localStorage.setItem('token', data.token);
+      alert('Login successful!');
+      // Redirect to the protected page
+      window.location.href = '/admin/panel';
+    } else {
+      alert('Login failed: ' + data.error);
+    }
+  });
+
+  // Handle signup form submission
+  document.getElementById('signupForm').addEventListener('submit', async function (e) {
+    e.preventDefault(); // Prevent default form submission
+
+    const formData = new FormData(this);
+    const response = await fetch('/auth/register', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        email: formData.get('email'),
+        username: formData.get('username'),
+        password: formData.get('password'),
+        checkPassword: formData.get('checkPassword'),
+      }),
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      alert('Signup successful! Please login.');
+      // Switch to the login form
+      document.getElementById('check').checked = false;
+    } else {
+      alert('Signup failed: ' + data.error);
+    }
+  });
+</script>
 </body>
 </html>

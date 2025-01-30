@@ -61,39 +61,34 @@
 </section>
 
 <script>
-    localStorage.setItem('token', 'f68de409b1feff085cd6cb726e9b3c41')
-    const token = localStorage.getItem("token");
-    if (!token) {
-        alert("Unauthorized: Please log in.");
-        window.location.href = "/auth/login";
-    }
-
     // Add Authorization header to all form submissions
-    document.getElementById("foodForm").addEventListener("submit", function (e) {
-        e.preventDefault();
+    const token = localStorage.getItem('token');
+    console.log("Token: " + token)
 
-        const formData = new FormData(this);
-        const foodData = Object.fromEntries(formData.entries());
-
-        fetch('/admin/panel', {
-            method: 'GET',
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
+    fetch('/admin/panel', {
+        method: 'GET',
+        headers: {
+            'Authorization': `Bearer ${token}`,
+        },
+    })
+        .then(response => {
+            if (response.status === 403) {
+                alert('You do not have permission to access this page.');
+                window.location.href = '/'; // Redirect to home
+            } else if (response.ok) {
+                return response.json();
+            } else {
+                throw new Error('Error accessing the admin panel.');
             }
         })
-            .then(response => {
-                if (response.ok) {
-                    return response.text();
-                }
-                throw new Error('Unauthorized');
-            })
-            .then(data => {
-                console.log('Admin Panel:', data);
-            })
-            .catch(err => {
-                console.error(err.message);
-            });
-    });
+        .then(data => {
+            console.log(data);
+            // Render the admin panel
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+
 
     // Populate form for editing food
     function editFood(button) {
