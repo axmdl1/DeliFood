@@ -1,67 +1,56 @@
-package main
+package frontend
 
 import (
-	"bytes"
-	"encoding/json"
-	"net/http"
-	"net/http/httptest"
-	"reflect"
 	"testing"
+	"time"
+
+	"github.com/tebeka/selenium"
 )
 
-// Mock handler для эмуляции API
-func SearchProduct(w http.ResponseWriter, r *http.Request) {
-	var request map[string]string
-	json.NewDecoder(r.Body).Decode(&request)
-
-	searchQuery := request["query"]
-
-	// Пример поиска
-	products := []string{"Pizza", "Burger", "Sushi"}
-	var results []string
-	for _, product := range products {
-		if searchQuery != "" && searchQuery == product {
-			results = append(results, product)
-		}
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if len(results) > 0 {
-		json.NewEncoder(w).Encode(results)
-	} else {
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode([]string{})
-	}
-}
-
-// End-to-End тест для поиска продукта
-func TestEndToEndSearch(t *testing.T) {
-	// Создаём запрос
-	requestBody := map[string]string{"query": "Pizza"}
-	jsonBody, _ := json.Marshal(requestBody)
-	req, err := http.NewRequest("POST", "/search", bytes.NewBuffer(jsonBody))
+func TestUserRegistration(t *testing.T) {
+	// Запуск WebDriver
+	service, err := selenium.NewChromeDriverService("/usr/local/bin/chromedriver", 4444)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatalf("Error starting WebDriver: %v", err)
+	}
+	defer service.Stop()
+
+	// Подключение к WebDriver
+	caps := selenium.Capabilities{"browserName": "chrome"}
+	wd, err := selenium.NewRemote(caps, "http://localhost:4444/wd/hub")
+	if err != nil {
+		t.Fatalf("Failed to open session: %v", err)
+	}
+	defer wd.Quit()
+
+	// Открытие страницы регистрации
+	err = wd.Get("http://localhost:5050/register.html")
+	if err != nil {
+		t.Fatalf("Failed to load register page: %v", err)
 	}
 
-	// Создаём тестовый HTTP-сервер
-	rec := httptest.NewRecorder()
-	handler := http.HandlerFunc(SearchProduct)
-	handler.ServeHTTP(rec, req)
+	// Заполняем форму
+	emailField, _ := wd.FindElement(selenium.ByID, "email")
+	usernameField, _ := wd.FindElement(selenium.ByID, "username")
+	passwordField, _ := wd.FindElement(selenium.ByID, "password")
+	checkPasswordField, _ := wd.FindElement(selenium.ByID, "checkPassword")
+	registerButton, _ := wd.FindElement(selenium.ByID, "register-btn")
 
-	// Проверяем статус код
-	if rec.Code != http.StatusOK {
-		t.Errorf("Expected status code 200, but got %d", rec.Code)
-	}
+	emailField.SendKeys("test@example.com")
+	usernameField.SendKeys("testuser")
+	passwordField.SendKeys("test123")
+	checkPasswordField.SendKeys("test123")
 
-	// Проверяем ответ
-	var actualResponse []string
-	if err := json.Unmarshal(rec.Body.Bytes(), &actualResponse); err != nil {
-		t.Fatalf("Failed to parse response: %v", err)
-	}
+	// Нажимаем кнопку "Зарегистрироваться"
+	registerButton.Click()
 
-	expectedResponse := []string{"Pizza"}
-	if !reflect.DeepEqual(actualResponse, expectedResponse) {
-		t.Errorf("Expected response %v, but got %v", expectedResponse, actualResponse)
+	// Ждем 3 секунды
+	time.Sleep(3 * time.Second)
+
+	// Проверяем, был ли редирект на страницу подтверждения
+	currentURL, _ := wd.CurrentURL()
+	expectedURL := "http://localhost:5050/auth/verify-email"
+	if currentURL != expectedURL {
+		t.Errorf("Expected redirect to %s, but got %s", expectedURL, currentURL)
 	}
 }
