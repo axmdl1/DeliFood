@@ -1,31 +1,27 @@
 package handlers
 
 import (
+	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
-
-	"github.com/gin-gonic/gin"
 )
 
-// AdminPanelHandler serves the admin dashboard
+// AdminPanelHandler renders the admin page
 func AdminPanelHandler(c *gin.Context) {
-	// Step 1: Fetch the user role from the context (set by middleware or JWT parsing)
-	/*role, exists := c.Get("role")
-	if !exists || role != "admin" {
-		c.JSON(http.StatusForbidden, gin.H{"error": "You do not have permission to access this page"})
-		return
-	}*/
+	// Fetch user role and ID from the context set by AuthMiddleware
+	role, _ := c.Get("role")
+	userID, _ := c.Get("userID")
 
-	// Step 2: Fetch food items or other admin-related data from the repository
-	foods, err := userRepo.GetFood("", "") // Fetch all foods (you can filter/sort if needed)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch food items"})
+	// Check if the user is an admin
+	if role != "admin" {
+		c.JSON(http.StatusForbidden, gin.H{"error": "Forbidden: Admins only"})
 		return
 	}
 
-	// Step 3: Render the admin panel page with the food data
+	// Render the admin panel page
 	c.HTML(http.StatusOK, "admin.html", gin.H{
-		"Foods": foods,
+		"userID": userID,
+		"role":   role,
 	})
 }
 

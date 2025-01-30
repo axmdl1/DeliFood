@@ -61,35 +61,6 @@
 </section>
 
 <script>
-    // Add Authorization header to all form submissions
-    const token = localStorage.getItem('token');
-    console.log("Token: " + token)
-
-    fetch('/admin/panel', {
-        method: 'GET',
-        headers: {
-            'Authorization': `Bearer ${token}`,
-        },
-    })
-        .then(response => {
-            if (response.status === 403) {
-                alert('You do not have permission to access this page.');
-                window.location.href = '/'; // Redirect to home
-            } else if (response.ok) {
-                return response.json();
-            } else {
-                throw new Error('Error accessing the admin panel.');
-            }
-        })
-        .then(data => {
-            console.log(data);
-            // Render the admin panel
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        });
-
-
     // Populate form for editing food
     function editFood(button) {
         const row = button.closest("tr");

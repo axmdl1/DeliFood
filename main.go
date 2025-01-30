@@ -48,6 +48,7 @@ func main() {
 
 	// Initialize Gin router
 	r := gin.Default()
+	gin.SetMode(gin.ReleaseMode)
 
 	r.SetFuncMap(utils.TmplFuncs)
 

@@ -11,7 +11,7 @@
   <input type="checkbox" id="check">
   <div class="login form">
     <header>Login</header>
-    <form id="loginForm">
+    <form id="loginForm" action="/auth/login" method="POST">
       <input type="text" name="email" placeholder="Enter your email">
       <input type="password" name="password" placeholder="Enter your password">
       <input type="submit" class="button" value="Login">
@@ -24,7 +24,7 @@
   </div>
   <div class="registration form">
     <header>Signup</header>
-    <form id="signupForm">
+    <form id="signupForm" action="/auth/register" method="POST">
       <input type="text" name="email" placeholder="Enter your email">
       <input type="text" name="username" placeholder="Enter your Username">
       <input type="password" name="password" placeholder="Create a password">
@@ -41,7 +41,7 @@
 
 <script>
   // Handle login form submission
-  document.getElementById('loginForm').addEventListener('submit', async function (e) {
+  /*document.getElementById('loginForm').addEventListener('submit', async function (e) {
     e.preventDefault(); // Prevent default form submission
 
     const formData = new FormData(this);
@@ -94,7 +94,7 @@
     } else {
       alert('Signup failed: ' + data.error);
     }
-  });
+  });*/
 </script>
 </body>
 </html>

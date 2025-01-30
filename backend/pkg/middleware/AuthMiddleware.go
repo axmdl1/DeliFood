@@ -2,44 +2,30 @@ package middleware
 
 import (
 	"DeliFood/backend/utils"
-	"fmt"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 	"net/http"
-	"os"
-	"strings"
 )
 
-var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
-
-type Claims struct {
-	UserID int    `json:"userID"`
-	Role   string `json:"role"`
-	jwt.RegisteredClaims
-}
-
+// AuthMiddleware ensures only users with valid JWT tokens can access the route
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		// Get the Authorization header
-		authHeader := c.GetHeader("Authorization")
-		fmt.Println("AuthHeader: " + authHeader)
-		if authHeader == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
+		// Get the token from the cookie
+		token, err := c.Cookie("token")
+		if err != nil {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authorization token required"})
 			c.Abort()
 			return
 		}
 
-		// Extract token from Authorization header
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		fmt.Println("Recived token: " + tokenString)
-		claims, err := utils.ValidateJWT(tokenString)
-		if err != nil || claims == nil {
+		// Validate JWT token
+		claims, err := utils.ValidateJWT(token)
+		if err != nil {
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid token"})
 			c.Abort()
 			return
 		}
 
-		// Set claims into the context for further use (like checking role)
+		// Set userID and role in the context
 		c.Set("userID", claims.UserID)
 		c.Set("role", claims.Role)
 		c.Next()

@@ -1,11 +1,11 @@
 document.getElementById('loginForm').addEventListener('submit', async function (e) {
-    e.preventDefault(); // Prevent form submission
+    e.preventDefault(); // Prevent default form submission
 
     const formData = new FormData(this);
     const response = await fetch('/auth/login', {
         method: 'POST',
         headers: {
-            'Content-Type': 'application/json',
+            'Content-Type': 'application/json',  // Ensure Content-Type is set to JSON
         },
         body: JSON.stringify({
             email: formData.get('email'),
@@ -15,15 +15,9 @@ document.getElementById('loginForm').addEventListener('submit', async function (
 
     const data = await response.json();
     if (response.ok) {
-        // Store the token in localStorage
-        localStorage.setItem('token', data.token);
         alert('Login successful!');
-        // Redirect to the appropriate page
-        if (data.role === 'admin') {
-            window.location.href = '/admin/panel'; // Redirect to admin panel
-        } else {
-            window.location.href = '/'; // Redirect to main page
-        }
+        // Redirect to the protected admin page
+        window.location.href = '/admin/panel';
     } else {
         alert('Login failed: ' + data.error);
     }

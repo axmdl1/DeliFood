@@ -7,6 +7,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"log"
 	"net/http"
+	"time"
 )
 
 // RegisterHandler handles user registration
@@ -134,36 +135,19 @@ func VerifyEmailHandler(c *gin.Context) {
 
 // LoginHandler processes user login
 func LoginHandler(c *gin.Context) {
-	// Allow GET method to render login page
 	if c.Request.Method == http.MethodGet {
 		c.HTML(http.StatusOK, "auth.html", nil)
 		return
 	}
 
-	var loginData struct {
-		Email    string `form:"email" binding:"required"`
-		Password string `form:"password" binding:"required"`
-	}
+	// Get email and password from the form
+	email := c.PostForm("email")
+	password := c.PostForm("password")
 
-	// Validate the input data (email and password)
-	if err := c.ShouldBind(&loginData); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-		return
-	}
-
-	email := loginData.Email
-	password := loginData.Password
-
-	// Authenticate user
+	// Authenticate the user using the provided email and password
 	user, err := userRepo.Authenticate(email, password)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
-		return
-	}
-
-	// Check if the user is verified
-	if !user.IsVerified {
-		c.JSON(http.StatusForbidden, gin.H{"error": "User is not verified"})
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "Login failed: " + err.Error()})
 		return
 	}
 
@@ -174,9 +158,20 @@ func LoginHandler(c *gin.Context) {
 		return
 	}
 
-	// Return the token and role in the response body
-	c.JSON(http.StatusOK, gin.H{
-		"token": token,
-		"role":  user.Role,
+	// Set the token as an HTTP-only cookie (so it’s not accessible via JavaScript)
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     "token",
+		Value:    token,
+		Expires:  time.Now().Add(12 * time.Hour), // Token expires in 24 hours
+		HttpOnly: true,                           // Makes the cookie inaccessible via JavaScript
+		Secure:   true,                           // For HTTPS, use true in production (false if not using HTTPS)
+		Path:     "/",
 	})
+
+	// Redirect to the admin panel or home page
+	if user.Role == "admin" {
+		c.Redirect(http.StatusSeeOther, "/admin/panel")
+	} else {
+		c.Redirect(http.StatusSeeOther, "/")
+	}
 }
