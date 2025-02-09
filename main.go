@@ -44,7 +44,9 @@ func main() {
 
 	// Initialize repositories
 	userRepo := repo.NewUserRepo(dbConn)
+	cartRepo := repo.NewCartRepo(dbConn)
 	handlers.SetUserRepo(userRepo)
+	handlers.SetCartRepo(cartRepo)
 
 	// Initialize Gin router
 	r := gin.Default()
@@ -76,6 +78,16 @@ func main() {
 		authRoutes.POST("/verify-email", handlers.VerifyEmailHandler)
 		authRoutes.GET("/login", handlers.LoginHandler)
 		authRoutes.POST("/login", handlers.LoginHandler)
+	}
+
+	// Cart Routes
+	cartRoutes := r.Group("/cart")
+	cartRoutes.Use(middleware.AuthMiddleware()) // Only allow authenticated users
+	{
+		cartRoutes.GET("/items", handlers.GetCartHandler)
+		cartRoutes.POST("/add", handlers.AddToCartHandler)
+		//cartRoutes.POST("/update", handlers.UpdateItemQuantity)
+		//cartRoutes.POST("/remove", handlers.RemoveItemFromCart)
 	}
 
 	// Admin Routes (Protected)

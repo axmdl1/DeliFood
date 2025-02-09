@@ -25,49 +25,6 @@ func AdminPanelHandler(c *gin.Context) {
 	})
 }
 
-/*func AddOrUpdateFoodHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Validate the token in the Authorization header
-	authHeader := r.Header.Get("Authorization")
-	if authHeader == "" {
-		http.Error(w, "Unauthorized: No token provided", http.StatusUnauthorized)
-		return
-	}
-
-	token := strings.TrimPrefix(authHeader, "Bearer ")
-	user, err := userRepo.GetUserByToken(token)
-	if err != nil || user.Role != "admin" {
-		http.Error(w, "Forbidden: Insufficient permissions", http.StatusForbidden)
-		return
-	}
-
-	// Parse and save food data
-	var food models.Food
-	err = json.NewDecoder(r.Body).Decode(&food)
-	if err != nil {
-		http.Error(w, "Invalid request body", http.StatusBadRequest)
-		return
-	}
-
-	if food.ID == 0 {
-		err = userRepo.AddFood(food)
-	} else {
-		err = userRepo.UpdateFood(food)
-	}
-
-	if err != nil {
-		http.Error(w, "Failed to save food: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	w.Write([]byte("Food saved successfully"))
-}*/
-
 func DeleteFoodHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
