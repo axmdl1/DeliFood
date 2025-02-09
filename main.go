@@ -84,10 +84,10 @@ func main() {
 	cartRoutes := r.Group("/cart")
 	cartRoutes.Use(middleware.AuthMiddleware()) // Only allow authenticated users
 	{
-		cartRoutes.GET("/items", handlers.GetCartHandler)
+		cartRoutes.GET("/items", handlers.GetCartItemsHandler)
 		cartRoutes.POST("/add", handlers.AddToCartHandler)
-		//cartRoutes.POST("/update", handlers.UpdateItemQuantity)
-		//cartRoutes.POST("/remove", handlers.RemoveItemFromCart)
+		cartRoutes.POST("/update/:item_id", handlers.UpdateCartItemHandler)
+		cartRoutes.DELETE("/remove/:item_id", handlers.RemoveCartItemHandler)
 	}
 
 	// Admin Routes (Protected)
