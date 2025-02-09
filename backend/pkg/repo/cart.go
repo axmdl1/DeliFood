@@ -16,25 +16,17 @@ func NewCartRepo(db *sql.DB) *CartRepo {
 	return &CartRepo{DB: db}
 }
 
-// AddItemToCart adds an item to the user's cart.
-func (cr *CartRepo) AddItemToCart(userID, foodID, quantity int) error {
-	// Check if item already exists in the cart
-	var existingQuantity int
-	err := cr.DB.QueryRow("SELECT quantity FROM cart_items WHERE user_id = $1 AND food_id = $2", userID, foodID).Scan(&existingQuantity)
-
-	if err != nil && err != sql.ErrNoRows {
-		return fmt.Errorf("error checking cart: %w", err)
+// AddItemToCart adds an item to the user's cart
+func (repo *CartRepo) AddItemToCart(userID int, foodID int, quantity int, foodName string, foodPrice float64) error {
+	// Store the cart item in the database
+	_, err := repo.DB.Exec(`
+		INSERT INTO cart_items (user_id, food_id, quantity, food_name, food_price)
+		VALUES ($1, $2, $3, $4, $5)`,
+		userID, foodID, quantity, foodName, foodPrice)
+	if err != nil {
+		return fmt.Errorf("failed to add item to cart: %w", err)
 	}
-
-	if existingQuantity > 0 {
-		// If item exists, update the quantity
-		_, err := cr.DB.Exec("UPDATE cart_items SET quantity = quantity + $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2 AND food_id = $3", quantity, userID, foodID)
-		return err
-	}
-
-	// If item doesn't exist, insert it into the cart
-	_, err = cr.DB.Exec("INSERT INTO cart_items (user_id, food_id, quantity) VALUES ($1, $2, $3)", userID, foodID, quantity)
-	return err
+	return nil
 }
 
 // UpdateItemQuantity updates the quantity of an item in the cart

@@ -20,29 +20,40 @@ func SetCartRepo(cr *repo.CartRepo) {
 
 // AddToCartHandler adds an item to the user's cart
 func AddToCartHandler(c *gin.Context) {
-	// Get user ID from context (from JWT)
+	// Get user ID from context (authentication middleware should ensure it's set)
 	userID, _ := c.Get("userID")
 
-	foodID, err := strconv.Atoi(c.DefaultQuery("food_id", "0"))
+	// Get the food ID from the form
+	foodID, err := strconv.Atoi(c.PostForm("food_id"))
+	fmt.Println("FoodId: ", foodID)
 	if err != nil || foodID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid food ID"})
 		return
 	}
 
-	quantity, err := strconv.Atoi(c.DefaultQuery("quantity", "1"))
+	// Get the quantity from the form
+	quantity, err := strconv.Atoi(c.DefaultPostForm("quantity", "1"))
 	if err != nil || quantity <= 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid quantity"})
 		return
 	}
 
-	// Add item to cart
-	err = cartRepo.AddItemToCart(userID.(int), foodID, quantity)
+	// Fetch the food details from the database using food ID
+	food, err := userRepo.GetFoodByID(foodID)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to fetch food details: %s", err)})
+		return
+	}
+
+	// Add the item to the cart
+	err = cartRepo.AddItemToCart(userID.(int), foodID, quantity, food.Name, food.Price)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to add item to cart: %s", err)})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Item added to cart"})
+	// Redirect the user to the cart page after successfully adding the item
+	c.Redirect(http.StatusFound, "/cart")
 }
 
 // GetCartItemsHandler retrieves and renders the cart page with the user's cart items

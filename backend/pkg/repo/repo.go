@@ -133,9 +133,9 @@ func (ur *UserRepo) DeleteFood(id int) error {
 
 func (ur *UserRepo) GetFood(category, sortParam string) ([]models.Food, error) {
 	// Base query
-	query := "SELECT name, category, image, description, price FROM foods"
+	query := "SELECT id, name, category, image, description, price FROM foods"
 
-	// Add filtering by category
+	// Add filtering by category if provided
 	var args []interface{}
 	if category != "" {
 		query += " WHERE category = $1"
@@ -152,18 +152,18 @@ func (ur *UserRepo) GetFood(category, sortParam string) ([]models.Food, error) {
 		query += " ORDER BY name ASC"
 	}
 
-	// Execute query
+	// Execute the query
 	rows, err := ur.DB.Query(query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve food items: %w", err)
 	}
 	defer rows.Close()
 
-	// Parse rows into food items
+	// Parse the result into food items
 	var foods []models.Food
 	for rows.Next() {
 		var food models.Food
-		err := rows.Scan(&food.Name, &food.Category, &food.Image, &food.Description, &food.Price)
+		err := rows.Scan(&food.ID, &food.Name, &food.Category, &food.Image, &food.Description, &food.Price)
 		if err != nil {
 			return nil, fmt.Errorf("error scanning food row: %w", err)
 		}
@@ -171,9 +171,28 @@ func (ur *UserRepo) GetFood(category, sortParam string) ([]models.Food, error) {
 	}
 
 	// Check for errors after iteration
-	if err = rows.Err(); err != nil {
+	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error during row iteration: %w", err)
 	}
 
 	return foods, nil
+}
+
+// GetFoodByID retrieves a food item from the database by its ID.
+func (ur *UserRepo) GetFoodByID(foodID int) (*models.Food, error) {
+	var food models.Food
+	// Query the database to get the food details
+	err := ur.DB.QueryRow(`
+		SELECT id, name, category, image, description, price 
+		FROM foods WHERE id = $1`, foodID).
+		Scan(&food.ID, &food.Name, &food.Category, &food.Image, &food.Description, &food.Price)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, fmt.Errorf("no food found with ID: %d", foodID)
+		}
+		return nil, fmt.Errorf("error fetching food by ID: %w", err)
+	}
+
+	return &food, nil
 }

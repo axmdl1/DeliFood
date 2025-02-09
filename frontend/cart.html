@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Cart - DeliFood</title>
-    <link rel="stylesheet" href="/assets/css/cartStyle.css">
+    <link rel="stylesheet" href="assets/css/cartStyle.css">
 </head>
 <body>
 
@@ -25,11 +25,11 @@
                 <p>{{.Description}}</p>
                 <p>Price: ${{.Price}}</p>
                 <p>Quantity: {{.Quantity}}</p>
-                <form action="/admin/cart/update/{{.ItemID}}" method="POST">
+                <form action="/cart/update/{{.ItemID}}" method="POST">
                     <input type="number" name="quantity" value="{{.Quantity}}">
                     <button type="submit">Update</button>
                 </form>
-                <form action="/admin/cart/remove/{{.ItemID}}" method="POST">
+                <form action="/cart/remove/{{.ItemID}}" method="POST">
                     <button type="submit">Remove</button>
                 </form>
             </div>
