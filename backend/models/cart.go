@@ -2,9 +2,11 @@ package models
 
 // CartItem represents an item in the cart
 type CartItem struct {
-	ID       int     `json:"id"`
-	Name     string  `json:"name"`
-	Price    float64 `json:"price"`
-	Quantity int     `json:"quantity"`
-	Image    string  `json:"image"`
+	ID         int
+	UserID     int
+	FoodID     int
+	FoodName   string
+	FoodPrice  float64
+	Quantity   int
+	TotalPrice float64
 }

@@ -2,49 +2,61 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cart - DeliFood</title>
-    <link rel="stylesheet" href="assets/css/cartStyle.css">
+    <link rel="stylesheet" href="/assets/css/cartStyle.css">
 </head>
 <body>
-
-<header>
+<header class="header">
     <a href="/" class="logo"> <i class="fas fa-utensils"></i> DeliFood </a>
     <a href="/menu" class="btn">Go to Menu</a>
 </header>
 
-<h1>Your Cart</h1>
-
-<div class="cart">
-    {{if .cart_items}}
-    <div class="cart-items">
-        {{range .cart_items}}
-        <div class="cart-item">
-            <img src="{{.Image}}" alt="{{.Name}}">
-            <div class="cart-item-info">
-                <h3>{{.Name}}</h3>
-                <p>{{.Description}}</p>
-                <p>Price: ${{.Price}}</p>
-                <p>Quantity: {{.Quantity}}</p>
-                <form action="/cart/update/{{.ItemID}}" method="POST">
-                    <input type="number" name="quantity" value="{{.Quantity}}">
-                    <button type="submit">Update</button>
+<section class="cart">
+    <h1 class="menu">Your Cart</h1>
+    <table class="cart-table">
+        <thead>
+        <tr>
+            <th>Food Name</th>
+            <th>Price</th>
+            <th>Quantity</th>
+            <th>Total</th>
+            <th>Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        {{range .CartItems}}
+        <tr>
+            <td>{{.FoodName}}</td>
+            <td>{{.FoodPrice}}</td>
+            <td>
+                <form action="/cart/update/{{.ID}}" method="post">
+                    <input type="number" name="quantity" value="{{.Quantity}}" min="1" />
+                    <button type="submit" class="btn">Update</button>
                 </form>
-                <form action="/cart/remove/{{.ItemID}}" method="POST">
-                    <button type="submit">Remove</button>
+            </td>
+            <td>{{.TotalPrice}}</td>
+            <td>
+                <form action="/cart/remove/{{.ID}}" method="post">
+                    <button type="submit" class="btn">Remove</button>
                 </form>
-            </div>
-        </div>
+            </td>
+        </tr>
+        {{else}}
+        <tr>
+            <td colspan="5">Your cart is empty.</td>
+        </tr>
         {{end}}
-    </div>
+        </tbody>
+    </table>
 
-    <div class="cart-total">
-        <p>Total: ${{.total_price}}</p>
+    {{if .CartItems}}
+    <div class="total-price">
+        <h3>Total: ${{.TotalPrice}}</h3>
         <a href="/checkout" class="btn">Proceed to Checkout</a>
     </div>
-    {{else}}
-    <p>Your cart is empty!</p>
     {{end}}
-</div>
+</section>
 
 <script>
     // Fetch cart items from the server and display them

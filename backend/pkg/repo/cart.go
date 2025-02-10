@@ -41,32 +41,31 @@ func (cr *CartRepo) RemoveItemFromCart(userID, foodID int) error {
 	return err
 }
 
-// GetCartItems retrieves all items in the user's cart
+// GetCartItems retrieves items in the user's cart
 func (cr *CartRepo) GetCartItems(userID int) ([]models.CartItem, error) {
 	rows, err := cr.DB.Query(`
-		SELECT ci.id, f.name, f.price, ci.quantity, f.image
+		SELECT ci.id, ci.quantity, f.name, f.price
 		FROM cart_items ci
 		JOIN foods f ON ci.food_id = f.id
 		WHERE ci.user_id = $1
 	`, userID)
-
 	if err != nil {
-		return nil, fmt.Errorf("error retrieving cart items: %w", err)
+		return nil, fmt.Errorf("failed to retrieve cart items: %w", err)
 	}
 	defer rows.Close()
 
 	var cartItems []models.CartItem
 	for rows.Next() {
 		var item models.CartItem
-		err := rows.Scan(&item.ID, &item.Name, &item.Price, &item.Quantity, &item.Image)
+		err := rows.Scan(&item.ID, &item.Quantity, &item.FoodName, &item.FoodPrice)
 		if err != nil {
-			return nil, fmt.Errorf("error scanning cart item: %w", err)
+			return nil, fmt.Errorf("error scanning cart item row: %w", err)
 		}
 		cartItems = append(cartItems, item)
 	}
 
 	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error iterating rows: %w", err)
+		return nil, fmt.Errorf("error during row iteration: %w", err)
 	}
 
 	return cartItems, nil

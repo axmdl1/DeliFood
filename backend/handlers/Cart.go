@@ -1,7 +1,6 @@
 package handlers
 
 import (
-	"DeliFood/backend/models"
 	"DeliFood/backend/pkg/repo"
 	"fmt"
 	"net/http"
@@ -53,12 +52,12 @@ func AddToCartHandler(c *gin.Context) {
 	}
 
 	// Redirect the user to the cart page after successfully adding the item
-	c.Redirect(http.StatusFound, "/cart")
+	c.Redirect(http.StatusFound, "/cart/items")
 }
 
-// GetCartItemsHandler retrieves and renders the cart page with the user's cart items
+// Example handler to render cart page
 func GetCartItemsHandler(c *gin.Context) {
-	// Get user ID from context (authentication middleware should ensure it's set)
+	// Get user ID from context
 	userID, _ := c.Get("userID")
 
 	// Fetch cart items from the database
@@ -68,21 +67,28 @@ func GetCartItemsHandler(c *gin.Context) {
 		return
 	}
 
-	// Render the cart page with cart items
+	// Calculate total price for each cart item and total price for all items
+	var totalPrice float64
+	for _, item := range cartItems {
+		item.TotalPrice = item.FoodPrice * float64(item.Quantity)
+		totalPrice += item.TotalPrice
+	}
+
+	// Pass cart items and total price to the template
 	c.HTML(http.StatusOK, "cart.html", gin.H{
-		"cart_items":  cartItems,
-		"total_price": calculateTotalPrice(cartItems),
+		"CartItems":  cartItems,
+		"TotalPrice": totalPrice,
 	})
 }
 
-// calculateTotalPrice calculates the total price of all items in the cart
+/*// calculateTotalPrice calculates the total price of all items in the cart
 func calculateTotalPrice(cartItems []models.CartItem) float64 {
 	var totalPrice float64
 	for _, item := range cartItems {
 		totalPrice += item.Price * float64(item.Quantity)
 	}
 	return totalPrice
-}
+}*/
 
 // UpdateCartItemHandler updates the quantity of an item in the cart
 func UpdateCartItemHandler(c *gin.Context) {
