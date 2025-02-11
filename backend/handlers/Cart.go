@@ -122,14 +122,18 @@ func RemoveCartItemHandler(c *gin.Context) {
 	userID, _ := c.Get("userID")
 
 	// Get the cart item ID
-	itemID, _ := strconv.Atoi(c.Param("item_id"))
+	itemID, err := strconv.Atoi(c.Param("item_id"))
+	if err != nil || itemID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
+	}
 
 	// Remove the item from the cart
-	err := cartRepo.RemoveItemFromCart(userID.(int), itemID)
+	err = cartRepo.RemoveItemFromCart(userID.(int), itemID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove cart item"})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Cart item removed"})
+	//c.JSON(http.StatusOK, gin.H{"message": "Cart item removed"})
+	c.Redirect(http.StatusFound, "/cart/items")
 }

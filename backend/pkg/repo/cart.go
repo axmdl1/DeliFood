@@ -35,10 +35,17 @@ func (cr *CartRepo) UpdateItemQuantity(userID, foodID, quantity int) error {
 	return err
 }
 
-// RemoveItemFromCart removes an item from the user's cart
-func (cr *CartRepo) RemoveItemFromCart(userID, foodID int) error {
-	_, err := cr.DB.Exec("DELETE FROM cart_items WHERE user_id = $1 AND food_id = $2", userID, foodID)
-	return err
+// RemoveItemFromCart removes an item from the cart
+func (cr *CartRepo) RemoveItemFromCart(userID int, itemID int) error {
+	_, err := cr.DB.Exec(`
+		DELETE FROM cart_items
+		WHERE user_id = $1 AND id = $2
+	`, userID, itemID)
+
+	if err != nil {
+		return fmt.Errorf("failed to remove item from cart: %w", err)
+	}
+	return nil
 }
 
 // GetCartItems retrieves items in the user's cart

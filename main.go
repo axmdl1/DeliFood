@@ -87,7 +87,7 @@ func main() {
 		cartRoutes.GET("/items", handlers.GetCartItemsHandler)
 		cartRoutes.POST("/add", handlers.AddToCartHandler)
 		cartRoutes.POST("/update/:item_id", handlers.UpdateCartItemHandler)
-		cartRoutes.DELETE("/remove/:item_id", handlers.RemoveCartItemHandler)
+		cartRoutes.POST("/remove/:item_id", handlers.RemoveCartItemHandler)
 	}
 
 	// Admin Routes (Protected)
