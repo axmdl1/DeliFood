@@ -31,7 +31,7 @@ func (repo *CartRepo) AddItemToCart(userID int, foodID int, quantity int, foodNa
 
 // UpdateItemQuantity updates the quantity of an item in the cart
 func (cr *CartRepo) UpdateItemQuantity(userID, foodID, quantity int) error {
-	_, err := cr.DB.Exec("UPDATE cart_items SET quantity = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2 AND food_id = $3", quantity, userID, foodID)
+	_, err := cr.DB.Exec("UPDATE cart_items SET quantity = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2 AND id = $3", quantity, userID, foodID)
 	return err
 }
 

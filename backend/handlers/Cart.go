@@ -90,30 +90,40 @@ func calculateTotalPrice(cartItems []models.CartItem) float64 {
 	return totalPrice
 }*/
 
-// UpdateCartItemHandler updates the quantity of an item in the cart
+// UpdateCartItemHandler updates the quantity of an item in the user's cart
 func UpdateCartItemHandler(c *gin.Context) {
-	// Get user ID from context
+	// Get user ID from context (authentication middleware should ensure it's set)
 	userID, _ := c.Get("userID")
 
-	// Get the cart item ID and new quantity
-	itemID, _ := strconv.Atoi(c.Param("item_id"))
-	var request struct {
-		Quantity int `json:"quantity"`
+	// Get the cart item ID from the URL parameter
+	itemID, err := strconv.Atoi(c.Param("item_id"))
+	if err != nil || itemID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid cart item ID"})
+		return
 	}
 
-	if err := c.ShouldBindJSON(&request); err != nil {
+	// Create a struct to hold the form data
+	var request struct {
+		Quantity int `form:"quantity"`
+	}
+
+	// Bind the form data to the struct
+	if err := c.ShouldBind(&request); err != nil {
+		// Log the error for debugging
+		fmt.Println("Error binding form data:", err)
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
 		return
 	}
 
-	// Update the quantity in the database
-	err := cartRepo.UpdateItemQuantity(userID.(int), itemID, request.Quantity)
+	// Update the item quantity in the cart
+	err = cartRepo.UpdateItemQuantity(userID.(int), itemID, request.Quantity)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update cart item"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update cart item: %s", err)})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Cart item updated"})
+	//c.JSON(http.StatusOK, gin.H{"message": "Cart item updated"})
+	c.Redirect(http.StatusFound, "/cart/items")
 }
 
 // RemoveCartItemHandler removes an item from the cart
