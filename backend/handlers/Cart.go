@@ -24,7 +24,6 @@ func AddToCartHandler(c *gin.Context) {
 
 	// Get the food ID from the form
 	foodID, err := strconv.Atoi(c.PostForm("food_id"))
-	fmt.Println("FoodId: ", foodID)
 	if err != nil || foodID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid food ID"})
 		return
