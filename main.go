@@ -45,8 +45,10 @@ func main() {
 	// Initialize repositories
 	userRepo := repo.NewUserRepo(dbConn)
 	cartRepo := repo.NewCartRepo(dbConn)
+	adminRepo := repo.NewAdminRepo(dbConn)
 	handlers.SetUserRepo(userRepo)
 	handlers.SetCartRepo(cartRepo)
+	handlers.SetAdminRepo(adminRepo)
 
 	// Initialize Gin router
 	r := gin.Default()
@@ -96,6 +98,7 @@ func main() {
 	adminRoutes.Use(middleware.AuthMiddleware())
 	{
 		adminRoutes.GET("/panel", handlers.AdminPanelHandler)
+		adminRoutes.POST("/user/change-role", handlers.ChangeUserRoleHandler)
 	}
 
 	// Start HTTP Server with graceful shutdown

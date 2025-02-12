@@ -1,10 +1,17 @@
 package handlers
 
 import (
+	"DeliFood/backend/pkg/repo"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
 )
+
+var adminRepo *repo.AdminRepo
+
+func SetAdminRepo(r *repo.AdminRepo) {
+	adminRepo = r
+}
 
 // AdminPanelHandler renders the admin page
 func AdminPanelHandler(c *gin.Context) {
@@ -18,11 +25,53 @@ func AdminPanelHandler(c *gin.Context) {
 		return
 	}
 
+	foods, err := adminRepo.GetAllFoods()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve foods"})
+		return
+	}
+
 	// Render the admin panel page
 	c.HTML(http.StatusOK, "admin.html", gin.H{
 		"userID": userID,
 		"role":   role,
+		"Foods":  foods,
 	})
+}
+
+/*func GetFoodsHandler(c *gin.Context) {
+	foods, err := adminRepo.GetAllFoods()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve foods"})
+		return
+	}
+
+	c.HTML(http.StatusOK, "admin_panel.html", gin.H{
+		"Foods": foods,
+	})
+}*/
+
+// ChangeUserRoleHandler handles the request to change a user's role
+func ChangeUserRoleHandler(c *gin.Context) {
+	userID, err := strconv.Atoi(c.PostForm("userID"))
+	if err != nil || userID == 0 {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
+		return
+	}
+
+	newRole := c.PostForm("role") // 'role' comes from the form field in the frontend
+	if newRole != "user" && newRole != "admin" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role"})
+		return
+	}
+
+	err = adminRepo.UpdateUserRole(userID, newRole) // Assuming userRepo has this method
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user role"})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "User role updated successfully"})
 }
 
 func DeleteFoodHandler(w http.ResponseWriter, r *http.Request) {
