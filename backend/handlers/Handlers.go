@@ -148,30 +148,3 @@ func ContactUsHandler(c *gin.Context) {
 
 	c.JSON(http.StatusOK, gin.H{"message": "Email sent successfully!"})
 }
-
-// AddFoodHandler adds a new food item to the menu
-func AddFoodHandler(c *gin.Context) {
-	if c.Request.Method != http.MethodPost {
-		c.JSON(http.StatusMethodNotAllowed, gin.H{"error": "Invalid request method"})
-		return
-	}
-
-	var food models.Food
-	if err := c.ShouldBind(&food); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form data"})
-		return
-	}
-
-	if food.Name == "" || food.Category == "" || food.Image == "" || food.Description == "" || food.Price == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "All fields are required"})
-		return
-	}
-
-	// Save food item to the database
-	if err := userRepo.AddFood(food); err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add food item"})
-		return
-	}
-
-	c.JSON(http.StatusCreated, gin.H{"message": "Food item added successfully"})
-}

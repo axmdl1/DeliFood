@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"DeliFood/backend/models"
 	"DeliFood/backend/pkg/repo"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"net/http"
 	"strconv"
@@ -39,17 +41,25 @@ func AdminPanelHandler(c *gin.Context) {
 	})
 }
 
-/*func GetFoodsHandler(c *gin.Context) {
-	foods, err := adminRepo.GetAllFoods()
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve foods"})
+// AddFoodHandler adds a new food item to the database
+func AddFoodHandler(c *gin.Context) {
+	// Parse form data from the request
+	var food models.Food
+	if err := c.ShouldBind(&food); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
 		return
 	}
 
-	c.HTML(http.StatusOK, "admin_panel.html", gin.H{
-		"Foods": foods,
-	})
-}*/
+	// Insert the food item into the database
+	err := adminRepo.AddFood(&food)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to add food: %s", err)})
+		return
+	}
+
+	// Redirect back to the admin panel or show a success message
+	c.Redirect(http.StatusFound, "/admin/panel")
+}
 
 // ChangeUserRoleHandler handles the request to change a user's role
 func ChangeUserRoleHandler(c *gin.Context) {

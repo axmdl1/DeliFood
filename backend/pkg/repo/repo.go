@@ -108,24 +108,6 @@ func (ur *UserRepo) Authenticate(email, password string) (models.User, error) {
 	return user, nil
 }
 
-func (ur *UserRepo) AddFood(food models.Food) error {
-	_, err := ur.DB.Exec(`
-		INSERT INTO foods (name, category, image, description, price) 
-		VALUES ($1, $2, $3, $4, $5)`,
-		food.Name, food.Category, food.Image, food.Description, food.Price,
-	)
-	return err
-}
-
-func (ur *UserRepo) UpdateFood(food models.Food) error {
-	_, err := ur.DB.Exec(`
-		UPDATE foods SET name = $1, category = $2, image = $3, description = $4, price = $5 
-		WHERE id = $6`,
-		food.Name, food.Category, food.Image, food.Description, food.Price, food.ID,
-	)
-	return err
-}
-
 func (ur *UserRepo) DeleteFood(id int) error {
 	_, err := ur.DB.Exec(`DELETE FROM foods WHERE id = $1`, id)
 	return err

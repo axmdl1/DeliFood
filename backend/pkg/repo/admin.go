@@ -14,6 +14,26 @@ func NewAdminRepo(db *sql.DB) *AdminRepo {
 	return &AdminRepo{DB: db}
 }
 
+func (ar *AdminRepo) AddFood(food *models.Food) error {
+	query := `INSERT INTO foods (name, category, image, description, price) VALUES ($1, $2, $3, $4, $5)`
+
+	_, err := ar.DB.Exec(query, food.Name, food.Category, food.Image, food.Description, food.Price)
+	if err != nil {
+		return fmt.Errorf("Error inserting food: %s", err)
+	}
+
+	return nil
+}
+
+func (ar *AdminRepo) UpdateFood(food models.Food) error {
+	_, err := ar.DB.Exec(`
+		UPDATE foods SET name = $1, category = $2, image = $3, description = $4, price = $5 
+		WHERE id = $6`,
+		food.Name, food.Category, food.Image, food.Description, food.Price, food.ID,
+	)
+	return err
+}
+
 // UpdateUserRole updates the role of a user in the database
 func (ar *AdminRepo) UpdateUserRole(userID int, role string) error {
 	_, err := ar.DB.Exec("UPDATE users SET role = $1 WHERE id = $2", role, userID)

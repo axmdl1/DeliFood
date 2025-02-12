@@ -17,14 +17,13 @@
     <h1 class="menu">Admin Panel</h1>
 
     <!-- Form for adding/editing food -->
-    <form id="foodForm" class="filter-sort-form" action="/admin/food" method="post">
-        <input type="hidden" name="id" id="foodId">
-        <input type="text" name="name" id="foodName" placeholder="Food Name" required>
-        <input type="text" name="category" id="foodCategory" placeholder="Category" required>
-        <input type="number" name="price" id="foodPrice" placeholder="Price" required>
-        <textarea name="description" id="foodDescription" placeholder="Description" required></textarea>
-        <input type="text" name="image" id="foodImage" placeholder="Image Filename" required>
-        <button type="submit" class="btn">Save</button>
+    <form id="foodForm" class="filter-sort-form" action="/admin/panel/food" method="post">
+        <input type="text" name="name" placeholder="Food Name" required>
+        <input type="text" name="category" placeholder="Category" required>
+        <input type="text" name="image" placeholder="Image Filename" required>
+        <textarea name="description" placeholder="Description" required></textarea>
+        <input type="number" name="price" placeholder="Price" required>
+        <button type="submit">Add Food</button>
     </form>
 
     <!-- List of foods -->
