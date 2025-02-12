@@ -20,7 +20,6 @@
             <th>Food Name</th>
             <th>Price</th>
             <th>Quantity</th>
-            <th>Total</th>
             <th>Actions</th>
         </tr>
         </thead>
@@ -35,7 +34,6 @@
                     <button type="submit" class="btn">Update</button>
                 </form>
             </td>
-            <td>{{.TotalPrice}}</td>
             <td>
                 <form action="/cart/remove/{{.ID}}" method="post">
                     <button type="submit" class="btn">Remove</button>
@@ -52,8 +50,8 @@
 
     {{if .CartItems}}
     <div class="total-price">
-        <h3>Total: ${{.TotalPrice}}</h3>
-        <a href="/checkout" class="btn">Proceed to Checkout</a>
+        <h3>Total: {{.TotalPrice}}$</h3>
+        <a href="/checkout" class="checkoutBtn">Proceed to Checkout</a>
     </div>
     {{end}}
 </section>
