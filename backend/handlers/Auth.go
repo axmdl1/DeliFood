@@ -175,3 +175,12 @@ func LoginHandler(c *gin.Context) {
 		c.Redirect(http.StatusSeeOther, "/")
 	}
 }
+
+// LogoutHandler handles logging out the user
+func LogoutHandler(c *gin.Context) {
+	// Delete the authentication cookie by setting an expired time
+	c.SetCookie("token", "", -1, "/", "localhost", false, true) // Adjust domain and path as necessary
+
+	// Redirect the user to the login page or home page
+	c.Redirect(http.StatusFound, "/auth/login") // Redirect to login page or home
+}

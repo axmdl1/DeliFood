@@ -78,6 +78,7 @@ func main() {
 		authRoutes.POST("/verify-email", handlers.VerifyEmailHandler)
 		authRoutes.GET("/login", handlers.LoginHandler)
 		authRoutes.POST("/login", handlers.LoginHandler)
+		authRoutes.POST("/logout", handlers.LogoutHandler)
 	}
 
 	// Cart Routes
