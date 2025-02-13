@@ -46,9 +46,11 @@ func main() {
 	userRepo := repo.NewUserRepo(dbConn)
 	cartRepo := repo.NewCartRepo(dbConn)
 	adminRepo := repo.NewAdminRepo(dbConn)
+	//orderRepo := repo.NewOrderRepo(dbConn)
 	handlers.SetUserRepo(userRepo)
 	handlers.SetCartRepo(cartRepo)
 	handlers.SetAdminRepo(adminRepo)
+	//handlers.SetOrderRepo(orderRepo)
 
 	// Initialize Gin router
 	r := gin.Default()
@@ -91,6 +93,7 @@ func main() {
 		cartRoutes.POST("/add", handlers.AddToCartHandler)
 		cartRoutes.POST("/update/:item_id", handlers.UpdateCartItemHandler)
 		cartRoutes.POST("/remove/:item_id", handlers.RemoveCartItemHandler)
+		cartRoutes.POST("/checkout", handlers.CheckoutHandler)
 	}
 
 	// Admin Routes (Protected)

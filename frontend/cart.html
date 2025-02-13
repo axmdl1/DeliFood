@@ -51,7 +51,9 @@
     {{if .CartItems}}
     <div class="total-price">
         <h3>Total: {{.TotalPrice}}$</h3>
-        <a href="/checkout" class="checkoutBtn">Proceed to Checkout</a>
+        <form action="/cart/checkout" method="post">
+            <button type="submit" class="checkoutBtn">Pay</button>
+        </form>
     </div>
     {{end}}
 </section>
