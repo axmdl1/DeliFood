@@ -1,16 +1,62 @@
 package handlers
 
 import (
-	"bytes"
-	"encoding/json"
+	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"io/ioutil"
 	"net/http"
-	// Make sure to import your cart repository package, e.g.:
-	// "DeliFood/backend/pkg/repo"
 )
 
+var paymentServiceURL = "https://lenient-pure-muskox.ngrok-free.app/pay"
+
+func CheckoutHandler(c *gin.Context) {
+	// Get user ID from context
+	userID, exists := c.Get("userID")
+	if !exists {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+		return
+	}
+
+	// Retrieve cart items (assume cartRepo is defined)
+	cartItems, err := cartRepo.GetCartItems(userID.(int))
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve cart items"})
+		return
+	}
+
+	// Calculate total price
+	var totalPrice float64
+	for _, item := range cartItems {
+		totalPrice += item.FoodPrice * float64(item.Quantity)
+	}
+
+	// Generate a unique order ID using UUID
+	orderID := uuid.New().String()
+
+	// Instead of making a server-to-server call, we return an HTML page that auto-submits a form.
+	// The form contains the order_id and amount as hidden fields.
+	html := fmt.Sprintf(`
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <title>Redirecting to Payment</title>
+    </head>
+    <body onload="document.forms[0].submit()">
+        <form action="%s" method="POST">
+            <input type="hidden" name="order_id" value="%s">
+            <input type="hidden" name="amount" value="%.2f">
+        </form>
+        <p>Redirecting to payment...</p>
+    </body>
+    </html>
+    `, paymentServiceURL, orderID, totalPrice)
+
+	c.Header("Content-Type", "text/html")
+	c.String(http.StatusOK, html)
+}
+
+/*
 // paymentServiceURL should point to your microservice's /pay endpoint.
 var paymentServiceURL = "https://lenient-pure-muskox.ngrok-free.app/pay"
 
@@ -71,4 +117,4 @@ func CheckoutHandler(c *gin.Context) {
 	// 8. Depending on your workflow, either render the HTML payment form from the microservice
 	// or handle redirection. Here, we assume the microservice returns an HTML payment form.
 	c.Data(http.StatusOK, "text/html; charset=utf-8", responseBody)
-}
+}*/
