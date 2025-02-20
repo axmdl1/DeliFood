@@ -37,16 +37,13 @@ Before running this project, ensure you have the following installed:
 2. **Install Dependencies**:
    ```bash 
    go mod tidy
-3. **Configure SMTP Credentials: Update the handlers.ContactUsHandler function with your SMTP email and password**:
-   ```bash
-   dialer := gomail.NewDialer("smtp.mail.ru", 587, "your-email@mail.ru", "your-password")
-4. **Create Required Directories: Ensure the temp directory exists for file uploads**:
+3. **Create Required Directories: Ensure the temp directory exists for file uploads**:
    ```bash
    mkdir temp
-5. **Run the application**:
+4. **Run the application**:
     ```bash
    go run main.go
-6. **Access the Application: Open your browser and navigate to http://localhost:9078**
+5. **Access the Application: Open your browser and navigate to http://localhost:9078**
 
 
 ## Features in Detail
