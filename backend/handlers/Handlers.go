@@ -31,7 +31,7 @@ func MainPageHandler(c *gin.Context) {
 	c.HTML(http.StatusOK, "index.html", nil)
 }
 
-const itemsPerPage = 12
+const itemsPerPage = 8
 
 // MenuHandler handles the menu listing with sorting, filtering, and pagination
 func MenuHandler(c *gin.Context) {
