@@ -48,18 +48,6 @@ func (ur *UserRepo) Register(user models.User) error {
 	return nil
 }
 
-func (ur *UserRepo) UpdateVerificationStatus(email string, isVerified bool) error {
-	_, err := ur.DB.UpdateOne(
-		context.Background(),
-		bson.M{"email": email},
-		bson.M{"$set": bson.M{"isverified": isVerified}},
-	)
-	if err != nil {
-		return fmt.Errorf("failed to update verification status: %w", err)
-	}
-	return nil
-}
-
 func (ur *UserRepo) CheckEmailOrUsernameExists(email, username string) (bool, error) {
 	count, err := ur.DB.CountDocuments(context.Background(), bson.M{"$or": []bson.M{
 		{"email": email},
@@ -137,6 +125,7 @@ func (ur *UserRepo) GetFood(category, sortParam string) ([]models.Food, error) {
 		return nil, fmt.Errorf("failed to retrieve food items: %w", err)
 	}
 	defer cursor.Close(context.Background())
+
 	for cursor.Next(context.Background()) {
 		var food models.Food
 		if err := cursor.Decode(&food); err != nil {

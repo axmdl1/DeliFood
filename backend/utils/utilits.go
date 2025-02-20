@@ -71,12 +71,12 @@ func ValidateJWT(tokenString string) (*Claims, error) {
 
 func SendVerificationEmail(email, code string) error {
 	mail := gomail.NewMessage()
-	mail.SetHeader("From", delifoodMail)
+	mail.SetHeader("From", os.Getenv("DELIFOOD_MAIL"))
 	mail.SetHeader("To", email)
 	mail.SetHeader("Subject", "Email Verification Code")
 	mail.SetBody("text/plain", fmt.Sprintf("Your verification code is: %s", code))
 
-	dialer := gomail.NewDialer("smtp.mail.ru", 587, delifoodMail, delifoodPassword)
+	dialer := gomail.NewDialer("smtp.gmail.com", 587, os.Getenv("DELIFOOD_MAIL"), os.Getenv("DELIFOOD_PASSWORD"))
 	return dialer.DialAndSend(mail)
 }
 
