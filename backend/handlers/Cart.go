@@ -22,11 +22,12 @@ func SetCartRepo(cr *repo.CartRepo) {
 func AddToCartHandler(c *gin.Context) {
 	// Get user ID from context (authentication middleware should ensure it's set)
 	userID, _ := c.Get("userID")
+	objUserID := userID.(primitive.ObjectID)
 
 	// Get the food ID from the form
-	foodID, err := strconv.Atoi(c.PostForm("food_id"))
+	//foodID, err := strconv.Atoi(c.PostForm("food_id"))
 	objFoodID, err := primitive.ObjectIDFromHex(c.PostForm("food_id"))
-	if err != nil || foodID == 0 {
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid food ID"})
 		return
 	}
@@ -46,7 +47,7 @@ func AddToCartHandler(c *gin.Context) {
 	}
 
 	// Add the item to the cart
-	err = cartRepo.AddItemToCart(userID.(int), foodID, quantity, food.Name, food.Price)
+	err = cartRepo.AddItemToCart(objUserID, objFoodID, quantity, food.Name, food.Price)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to add item to cart: %s", err)})
 		return
@@ -60,9 +61,10 @@ func AddToCartHandler(c *gin.Context) {
 func GetCartItemsHandler(c *gin.Context) {
 	// Get user ID from context
 	userID, _ := c.Get("userID")
+	objUserID := userID.(primitive.ObjectID)
 
 	// Fetch cart items from the database
-	cartItems, err := cartRepo.GetCartItems(userID.(int))
+	cartItems, err := cartRepo.GetCartItems(objUserID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve cart items"})
 		return
@@ -95,10 +97,12 @@ func calculateTotalPrice(cartItems []models.CartItem) float64 {
 func UpdateCartItemHandler(c *gin.Context) {
 	// Get user ID from context (authentication middleware should ensure it's set)
 	userID, _ := c.Get("userID")
+	objUserID := userID.(primitive.ObjectID)
 
 	// Get the cart item ID from the URL parameter
-	itemID, err := strconv.Atoi(c.Param("item_id"))
-	if err != nil || itemID == 0 {
+	objItemID, err := primitive.ObjectIDFromHex(c.Param("item_id"))
+	fmt.Println(objItemID)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid cart item ID"})
 		return
 	}
@@ -117,7 +121,7 @@ func UpdateCartItemHandler(c *gin.Context) {
 	}
 
 	// Update the item quantity in the cart
-	err = cartRepo.UpdateItemQuantity(userID.(int), itemID, request.Quantity)
+	err = cartRepo.UpdateItemQuantity(objUserID, objItemID, request.Quantity)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update cart item: %s", err)})
 		return
@@ -131,15 +135,16 @@ func UpdateCartItemHandler(c *gin.Context) {
 func RemoveCartItemHandler(c *gin.Context) {
 	// Get user ID from context
 	userID, _ := c.Get("userID")
+	objUserID := userID.(primitive.ObjectID)
 
 	// Get the cart item ID
-	itemID, err := strconv.Atoi(c.Param("item_id"))
-	if err != nil || itemID == 0 {
+	objItemID, err := primitive.ObjectIDFromHex(c.Param("item_id"))
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
 	}
 
 	// Remove the item from the cart
-	err = cartRepo.RemoveItemFromCart(userID.(int), itemID)
+	err = cartRepo.RemoveItemFromCart(objUserID, objItemID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove cart item"})
 		return

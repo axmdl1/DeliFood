@@ -29,13 +29,15 @@
             <td>{{.FoodName}}</td>
             <td>{{.FoodPrice}}</td>
             <td>
-                <form action="/cart/update/{{.ID}}" method="post">
+                <form action="/cart/update/{{.ID.Hex}}" method="post">
+                    <input type="hidden" name="item_id" value="{{.ID.Hex}}">
                     <input type="number" name="quantity" value="{{.Quantity}}" min="1" required />
                     <button type="submit" class="btn">Update</button>
                 </form>
             </td>
             <td>
-                <form action="/cart/remove/{{.ID}}" method="post">
+                <form action="/cart/remove/{{.ID.Hex}}" method="post">
+                    <input type="hidden" name="item_id" value="{{.ID.Hex}}">
                     <button type="submit" class="btn">Remove</button>
                 </form>
             </td>

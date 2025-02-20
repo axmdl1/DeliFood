@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 )
 
@@ -12,13 +13,14 @@ var paymentServiceURL = "https://lenient-pure-muskox.ngrok-free.app/pay"
 func CheckoutHandler(c *gin.Context) {
 	// Get user ID from context
 	userID, exists := c.Get("userID")
+	objUserID := userID.(primitive.ObjectID)
 	if !exists {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
 		return
 	}
 
 	// Retrieve cart items (assume cartRepo is defined)
-	cartItems, err := cartRepo.GetCartItems(userID.(int))
+	cartItems, err := cartRepo.GetCartItems(objUserID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to retrieve cart items"})
 		return

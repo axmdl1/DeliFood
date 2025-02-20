@@ -4,6 +4,7 @@ import (
 	"DeliFood/backend/models"
 	"context"
 	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 
 	"go.mongodb.org/mongo-driver/bson"
@@ -18,7 +19,7 @@ func NewCartRepo(col *mongo.Collection) *CartRepo {
 	return &CartRepo{Col: col}
 }
 
-func (repo *CartRepo) AddItemToCart(userID int, foodID int, quantity int, foodName string, foodPrice float64) error {
+func (repo *CartRepo) AddItemToCart(userID primitive.ObjectID, foodID primitive.ObjectID, quantity int, foodName string, foodPrice float64) error {
 	cartItem := bson.M{
 		"user_id":    userID,
 		"food_id":    foodID,
@@ -35,7 +36,7 @@ func (repo *CartRepo) AddItemToCart(userID int, foodID int, quantity int, foodNa
 	return nil
 }
 
-func (cr *CartRepo) UpdateItemQuantity(userID, itemID, quantity int) error {
+func (cr *CartRepo) UpdateItemQuantity(userID primitive.ObjectID, itemID primitive.ObjectID, quantity int) error {
 	filter := bson.M{"user_id": userID, "_id": itemID}
 	update := bson.M{
 		"$set": bson.M{
@@ -47,7 +48,7 @@ func (cr *CartRepo) UpdateItemQuantity(userID, itemID, quantity int) error {
 	return err
 }
 
-func (cr *CartRepo) RemoveItemFromCart(userID int, itemID int) error {
+func (cr *CartRepo) RemoveItemFromCart(userID primitive.ObjectID, itemID primitive.ObjectID) error {
 	filter := bson.M{"user_id": userID, "_id": itemID}
 	_, err := cr.Col.DeleteOne(context.Background(), filter)
 	if err != nil {
@@ -56,7 +57,7 @@ func (cr *CartRepo) RemoveItemFromCart(userID int, itemID int) error {
 	return nil
 }
 
-func (cr *CartRepo) GetCartItems(userID int) ([]models.CartItem, error) {
+func (cr *CartRepo) GetCartItems(userID primitive.ObjectID) ([]models.CartItem, error) {
 	filter := bson.M{"user_id": userID}
 	cursor, err := cr.Col.Find(context.Background(), filter)
 	if err != nil {
