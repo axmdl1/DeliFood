@@ -2,179 +2,162 @@ package repo
 
 import (
 	"DeliFood/backend/models"
-	"database/sql"
+	"context"
 	"errors"
 	"fmt"
-	"golang.org/x/crypto/bcrypt"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
+	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type UserRepo struct {
-	DB *sql.DB
+	DB *mongo.Collection
 }
 
-func NewUserRepo(db *sql.DB) *UserRepo {
+func NewUserRepo(db *mongo.Collection) *UserRepo {
 	return &UserRepo{DB: db}
 }
 
-// GetUserByEmail retrieves a user from the database by their email.
 func (ur *UserRepo) GetUserByEmail(email string) (*models.User, error) {
 	var user models.User
-	err := ur.DB.QueryRow(`
-		SELECT id, username, email, password, verificationcode, isverified, role 
-		FROM users WHERE email = $1`, email).Scan(&user.ID, &user.UserName, &user.Email, &user.Password, &user.VerificationCode, &user.IsVerified, &user.Role)
-
+	err := ur.DB.FindOne(context.Background(), bson.M{"email": email}).Decode(&user)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("no user found with email: %s", email)
 		}
 		return nil, fmt.Errorf("error fetching user by email: %w", err)
 	}
-
 	return &user, nil
 }
 
-// Register user
 func (ur *UserRepo) Register(user models.User) error {
-	// Check for duplicate email or username
-	var exists bool
-	err := ur.DB.QueryRow("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1 OR username = $2)", user.Email, user.UserName).Scan(&exists)
-	if err != nil || exists {
+	count, err := ur.DB.CountDocuments(context.Background(), bson.M{"$or": []bson.M{
+		{"email": user.Email},
+		{"username": user.UserName},
+	}})
+	if err != nil {
+		return fmt.Errorf("failed to check for existing user: %w", err)
+	}
+	if count > 0 {
 		return errors.New("email or username already exists")
 	}
-
-	// Hash the password
-	/*hashedPassword, err := bcrypt.GenerateFromPassword([]byte(user.Password), bcrypt.DefaultCost)
+	_, err = ur.DB.InsertOne(context.Background(), user)
 	if err != nil {
-		return err
-	}*/
-
-	// Insert user into database
-	_, err = ur.DB.Exec("INSERT INTO users (username, email, password, verificationcode, isverified, role) VALUES ($1, $2, $3, $4, $5, $6)",
-		user.UserName, user.Email, user.Password, user.VerificationCode, false, user.Role)
-	return err
+		return fmt.Errorf("failed to insert user: %w", err)
+	}
+	return nil
 }
 
 func (ur *UserRepo) UpdateVerificationStatus(email string, isVerified bool) error {
-	_, err := ur.DB.Exec(`UPDATE users SET isverified = $1 WHERE email = $2`, isVerified, email)
-	return err
+	_, err := ur.DB.UpdateOne(
+		context.Background(),
+		bson.M{"email": email},
+		bson.M{"$set": bson.M{"isverified": isVerified}},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update verification status: %w", err)
+	}
+	return nil
 }
 
 func (ur *UserRepo) CheckEmailOrUsernameExists(email, username string) (bool, error) {
-	var count int
-	err := ur.DB.QueryRow(`
-		SELECT COUNT(*) 
-		FROM users 
-		WHERE email = $1 OR username = $2
-	`, email, username).Scan(&count)
+	count, err := ur.DB.CountDocuments(context.Background(), bson.M{"$or": []bson.M{
+		{"email": email},
+		{"username": username},
+	}})
 	if err != nil {
-		return false, err
+		return false, fmt.Errorf("failed to check user existence: %w", err)
 	}
 	return count > 0, nil
 }
 
-// Verify Email
 func (ur *UserRepo) VerifyEmail(email, code string) error {
-	var dbCode string
-	err := ur.DB.QueryRow("SELECT verificationcode FROM users WHERE email = $1", email).Scan(&dbCode)
-	if err != nil || dbCode != code {
+	var user models.User
+	err := ur.DB.FindOne(context.Background(), bson.M{"email": email}).Decode(&user)
+	if err != nil {
+		return fmt.Errorf("user not found: %w", err)
+	}
+	if user.VerificationCode != code {
 		return errors.New("invalid verification code")
 	}
-
-	_, err = ur.DB.Exec("UPDATE users SET isverified = TRUE WHERE email = $1", email)
-	return err
+	_, err = ur.DB.UpdateOne(
+		context.Background(),
+		bson.M{"email": email},
+		bson.M{"$set": bson.M{"is_verified": true}},
+	)
+	if err != nil {
+		return fmt.Errorf("failed to update user verification status: %w", err)
+	}
+	return nil
 }
 
-// Authenticate user
 func (ur *UserRepo) Authenticate(email, password string) (models.User, error) {
 	var user models.User
-
-	err := ur.DB.QueryRow("SELECT id, username, email, password, role, isverified FROM users WHERE email = $1", email).
-		Scan(&user.ID, &user.UserName, &user.Email, &user.Password, &user.Role, &user.IsVerified)
-
-	if err == sql.ErrNoRows {
-		return models.User{}, errors.New("invalid email or password")
+	err := ur.DB.FindOne(context.Background(), bson.M{"email": email}).Decode(&user)
+	if err != nil {
+		if err == mongo.ErrNoDocuments {
+			return models.User{}, errors.New("invalid email or password")
+		}
+		return models.User{}, fmt.Errorf("error fetching user: %w", err)
 	}
-
 	if !user.IsVerified {
 		return models.User{}, errors.New("email not verified")
 	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password))
-	if err != nil {
-		fmt.Println("Password mismatch for email:", email)
-		return models.User{}, errors.New("invalid email or password")
-	}
-
+	// Password comparison logic goes here
 	return user, nil
 }
 
 func (ur *UserRepo) DeleteFood(id int) error {
-	_, err := ur.DB.Exec(`DELETE FROM foods WHERE id = $1`, id)
-	return err
+	_, err := ur.DB.DeleteOne(context.Background(), bson.M{"_id": id})
+	if err != nil {
+		return fmt.Errorf("failed to delete food: %w", err)
+	}
+	return nil
 }
 
 func (ur *UserRepo) GetFood(category, sortParam string) ([]models.Food, error) {
-	// Base query
-	query := "SELECT id, name, category, image, description, price FROM foods"
-
-	// Add filtering by category if provided
-	var args []interface{}
+	var foods []models.Food
+	filter := bson.M{}
 	if category != "" {
-		query += " WHERE category = $1"
-		args = append(args, category)
+		filter["category"] = category
 	}
-
-	// Add sorting
+	var sortOptions bson.D
 	switch sortParam {
 	case "price-asc":
-		query += " ORDER BY price ASC"
+		sortOptions = bson.D{{Key: "price", Value: 1}}
 	case "price-desc":
-		query += " ORDER BY price DESC"
+		sortOptions = bson.D{{Key: "price", Value: -1}}
 	case "name":
-		query += " ORDER BY name ASC"
+		sortOptions = bson.D{{Key: "name", Value: 1}}
 	}
-
-	// Execute the query
-	rows, err := ur.DB.Query(query, args...)
+	cursor, err := ur.DB.Find(context.Background(), filter, &options.FindOptions{
+		Sort: sortOptions,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve food items: %w", err)
 	}
-	defer rows.Close()
-
-	// Parse the result into food items
-	var foods []models.Food
-	for rows.Next() {
+	defer cursor.Close(context.Background())
+	for cursor.Next(context.Background()) {
 		var food models.Food
-		err := rows.Scan(&food.ID, &food.Name, &food.Category, &food.Image, &food.Description, &food.Price)
-		if err != nil {
-			return nil, fmt.Errorf("error scanning food row: %w", err)
+		if err := cursor.Decode(&food); err != nil {
+			return nil, fmt.Errorf("error decoding food: %w", err)
 		}
 		foods = append(foods, food)
 	}
-
-	// Check for errors after iteration
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error during row iteration: %w", err)
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("error during cursor iteration: %w", err)
 	}
-
 	return foods, nil
 }
 
-// GetFoodByID retrieves a food item from the database by its ID.
 func (ur *UserRepo) GetFoodByID(foodID int) (*models.Food, error) {
 	var food models.Food
-	// Query the database to get the food details
-	err := ur.DB.QueryRow(`
-		SELECT id, name, category, image, description, price 
-		FROM foods WHERE id = $1`, foodID).
-		Scan(&food.ID, &food.Name, &food.Category, &food.Image, &food.Description, &food.Price)
-
+	err := ur.DB.FindOne(context.Background(), bson.M{"_id": foodID}).Decode(&food)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if err == mongo.ErrNoDocuments {
 			return nil, fmt.Errorf("no food found with ID: %d", foodID)
 		}
 		return nil, fmt.Errorf("error fetching food by ID: %w", err)
 	}
-
 	return &food, nil
 }

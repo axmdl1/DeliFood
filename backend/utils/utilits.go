@@ -2,6 +2,7 @@ package utils
 
 import (
 	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"gopkg.in/gomail.v2"
 	"html/template"
 	"math/rand"
@@ -17,21 +18,22 @@ func GenerateVerificationCode() string {
 }
 
 var jwtKey = []byte(os.Getenv("JWT_SECRET"))
+var delifoodMail = os.Getenv("DELIFOOD_MAIL")
+var delifoodPassword = os.Getenv("DELIFOOD_PASSWORD")
 
 type Claims struct {
-	UserID int    `json:"user_id"`
-	Email  string `json:"email"`
-	Role   string `json:"role"`
+	UserID primitive.ObjectID `json:"user_id"`
+	Email  string             `json:"email"`
+	Role   string             `json:"role"`
 	jwt.RegisteredClaims
 }
 
-// jwtSecret is used to sign and validate JWT tokens
 var jwtSecret string
 
 func InitJWTSecret() {
 	jwtSecret = os.Getenv("JWT_SECRET")
 	if jwtSecret == "" {
-		jwtSecret = "default_secret_key" // Replace with a strong key in production
+		jwtSecret = "default_secret_key"
 	}
 }
 
@@ -39,8 +41,7 @@ func GetJWTSecret() string {
 	return jwtSecret
 }
 
-// GenerateJWT generates a JWT token
-func GenerateJWT(userID int, email, role string) (string, error) {
+func GenerateJWT(userID primitive.ObjectID, email string, role string) (string, error) {
 	expirationTime := time.Now().Add(12 * time.Hour)
 	claims := &Claims{
 		UserID: userID,
@@ -55,7 +56,6 @@ func GenerateJWT(userID int, email, role string) (string, error) {
 	return token.SignedString(jwtKey)
 }
 
-// ValidateJWT validates a JWT and returns claims
 func ValidateJWT(tokenString string) (*Claims, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
@@ -71,12 +71,12 @@ func ValidateJWT(tokenString string) (*Claims, error) {
 
 func SendVerificationEmail(email, code string) error {
 	mail := gomail.NewMessage()
-	mail.SetHeader("From", "mr.akhmedali@bk.ru")
+	mail.SetHeader("From", delifoodMail)
 	mail.SetHeader("To", email)
 	mail.SetHeader("Subject", "Email Verification Code")
 	mail.SetBody("text/plain", fmt.Sprintf("Your verification code is: %s", code))
 
-	dialer := gomail.NewDialer("smtp.mail.ru", 587, "mr.akhmedali@bk.ru", "LVWZUunmUvMW8giSXLe0")
+	dialer := gomail.NewDialer("smtp.mail.ru", 587, delifoodMail, delifoodPassword)
 	return dialer.DialAndSend(mail)
 }
 

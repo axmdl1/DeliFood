@@ -19,38 +19,32 @@ import (
 )
 
 func main() {
-	// Load environment variables
 	if err := godotenv.Load(".env"); err != nil {
 		log.Println("No .env file found. Using system environment variables.")
 	}
 
-	// Initialize JWT secret
 	utils.InitJWTSecret()
 
-	// Initialize logger
-	logger := logger.NewLogger()
-	logger.Info("Application started", map[string]interface{}{
+	appLogger := logger.NewLogger()
+	appLogger.Info("Application started", map[string]interface{}{
 		"module": "main",
 		"status": "success",
 	})
 
-	// Load database config and connect
-	cfg := db.LoadConfigFromEnv(logger)
-	dbConn, err := db.NewDB(cfg, logger)
+	// Connect to MongoDB
+	dbClient, err := db.Connect()
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
-	defer dbConn.Close()
+	database := dbClient.Database("GoFood")
 
-	// Initialize repositories
-	userRepo := repo.NewUserRepo(dbConn)
-	cartRepo := repo.NewCartRepo(dbConn)
-	adminRepo := repo.NewAdminRepo(dbConn)
-	//orderRepo := repo.NewOrderRepo(dbConn)
+	// Initialize repositories using MongoDB collections
+	userRepo := repo.NewUserRepo(database.Collection("users"))
+	cartRepo := repo.NewCartRepo(database.Collection("cart_items"))
+	adminRepo := repo.NewAdminRepo(database.Collection("foods"), database.Collection("users"))
 	handlers.SetUserRepo(userRepo)
 	handlers.SetCartRepo(cartRepo)
 	handlers.SetAdminRepo(adminRepo)
-	//handlers.SetOrderRepo(orderRepo)
 
 	// Initialize Gin router
 	r := gin.Default()
@@ -58,14 +52,10 @@ func main() {
 
 	r.SetFuncMap(utils.TmplFuncs)
 
-	// Load HTML templates
 	r.LoadHTMLGlob("frontend/*.html")
-
-	// Serve static assets (CSS, JS, Images)
 	r.Static("/assets", "./frontend/assets")
 
-	// Initialize Rate Limiter Middleware (e.g., 5 requests/sec, burst 10)
-	rateLimiter := middleware.NewRateLimiter(5, 10, logger)
+	rateLimiter := middleware.NewRateLimiter(5, 10, appLogger)
 	r.Use(rateLimiter.LimitMiddleware())
 
 	// Public Routes
@@ -87,7 +77,7 @@ func main() {
 
 	// Cart Routes
 	cartRoutes := r.Group("/cart")
-	cartRoutes.Use(middleware.AuthMiddleware()) // Only allow authenticated users
+	cartRoutes.Use(middleware.AuthMiddleware())
 	{
 		cartRoutes.GET("/items", handlers.GetCartItemsHandler)
 		cartRoutes.POST("/add", handlers.AddToCartHandler)
@@ -96,7 +86,7 @@ func main() {
 		cartRoutes.POST("/checkout", handlers.CheckoutHandler)
 	}
 
-	// Admin Routes (Protected)
+	// Admin Routes
 	adminRoutes := r.Group("/admin")
 	adminRoutes.Use(middleware.AuthMiddleware())
 	{
@@ -105,7 +95,6 @@ func main() {
 		adminRoutes.POST("/panel/food", handlers.AddFoodHandler)
 	}
 
-	// Start HTTP Server with graceful shutdown
 	server := &http.Server{
 		Addr:    ":9078",
 		Handler: r,
@@ -118,7 +107,6 @@ func main() {
 		}
 	}()
 
-	// Graceful Shutdown
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, os.Interrupt, syscall.SIGTERM)
 	<-signalChan
@@ -127,7 +115,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
-		logger.Error("Server shutdown error", map[string]interface{}{"error": err})
+		appLogger.Error("Server shutdown error", map[string]interface{}{"error": err})
 	}
-	logger.Warn("Server stopped gracefully", nil)
+	appLogger.Warn("Server stopped gracefully", nil)
 }

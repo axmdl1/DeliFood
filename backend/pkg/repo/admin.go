@@ -1,70 +1,78 @@
 package repo
 
 import (
-	"DeliFood/backend/models"
-	"database/sql"
+	"context"
 	"fmt"
+	"time"
+
+	"DeliFood/backend/models"
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type AdminRepo struct {
-	DB *sql.DB
+	Foods *mongo.Collection
+	Users *mongo.Collection
 }
 
-func NewAdminRepo(db *sql.DB) *AdminRepo {
-	return &AdminRepo{DB: db}
+func NewAdminRepo(foods, users *mongo.Collection) *AdminRepo {
+	return &AdminRepo{
+		Foods: foods,
+		Users: users,
+	}
 }
 
 func (ar *AdminRepo) AddFood(food *models.Food) error {
-	query := `INSERT INTO foods (name, category, image, description, price) VALUES ($1, $2, $3, $4, $5)`
-
-	_, err := ar.DB.Exec(query, food.Name, food.Category, food.Image, food.Description, food.Price)
+	food.CreatedAt = time.Now()
+	food.UpdatedAt = time.Now()
+	_, err := ar.Foods.InsertOne(context.Background(), food)
 	if err != nil {
-		return fmt.Errorf("Error inserting food: %s", err)
+		return fmt.Errorf("Error inserting food: %w", err)
 	}
-
 	return nil
 }
 
 func (ar *AdminRepo) UpdateFood(food models.Food) error {
-	_, err := ar.DB.Exec(`
-		UPDATE foods SET name = $1, category = $2, image = $3, description = $4, price = $5 
-		WHERE id = $6`,
-		food.Name, food.Category, food.Image, food.Description, food.Price, food.ID,
-	)
+	filter := bson.M{"_id": food.ID}
+	update := bson.M{
+		"$set": bson.M{
+			"name":        food.Name,
+			"category":    food.Category,
+			"image":       food.Image,
+			"description": food.Description,
+			"price":       food.Price,
+			"updated_at":  time.Now(),
+		},
+	}
+	_, err := ar.Foods.UpdateOne(context.Background(), filter, update)
 	return err
 }
 
-// UpdateUserRole updates the role of a user in the database
 func (ar *AdminRepo) UpdateUserRole(userID int, role string) error {
-	_, err := ar.DB.Exec("UPDATE users SET role = $1 WHERE id = $2", role, userID)
+	filter := bson.M{"_id": userID}
+	update := bson.M{"$set": bson.M{"role": role}}
+	_, err := ar.Users.UpdateOne(context.Background(), filter, update)
 	return err
 }
 
-// GetAllFoods fetches all food items from the database
 func (ar *AdminRepo) GetAllFoods() ([]models.Food, error) {
-	var foods []models.Food
-
-	// Query the database to get all food details
-	rows, err := ar.DB.Query(`
-		SELECT id, name, category, image, description, price 
-		FROM foods`)
+	cursor, err := ar.Foods.Find(context.Background(), bson.M{})
 	if err != nil {
 		return nil, fmt.Errorf("error fetching foods: %w", err)
 	}
-	defer rows.Close()
+	defer cursor.Close(context.Background())
 
-	// Iterate through the rows and scan each food item into the foods slice
-	for rows.Next() {
+	var foods []models.Food
+	for cursor.Next(context.Background()) {
 		var food models.Food
-		if err := rows.Scan(&food.ID, &food.Name, &food.Category, &food.Image, &food.Description, &food.Price); err != nil {
-			return nil, fmt.Errorf("error scanning food row: %w", err)
+		if err := cursor.Decode(&food); err != nil {
+			return nil, fmt.Errorf("error decoding food: %w", err)
 		}
 		foods = append(foods, food)
 	}
 
-	// Check for any error that occurred during iteration
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error during row iteration: %w", err)
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("error during cursor iteration: %w", err)
 	}
 
 	return foods, nil

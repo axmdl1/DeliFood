@@ -2,78 +2,78 @@ package repo
 
 import (
 	"DeliFood/backend/models"
-	"database/sql"
+	"context"
 	"fmt"
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
-// CartRepo is the repository that interacts with the cart_items table
 type CartRepo struct {
-	DB *sql.DB
+	Col *mongo.Collection
 }
 
-// NewCartRepo creates a new CartRepo instance
-func NewCartRepo(db *sql.DB) *CartRepo {
-	return &CartRepo{DB: db}
+func NewCartRepo(col *mongo.Collection) *CartRepo {
+	return &CartRepo{Col: col}
 }
 
-// AddItemToCart adds an item to the user's cart
 func (repo *CartRepo) AddItemToCart(userID int, foodID int, quantity int, foodName string, foodPrice float64) error {
-	// Store the cart item in the database
-	_, err := repo.DB.Exec(`
-		INSERT INTO cart_items (user_id, food_id, quantity, food_name, food_price)
-		VALUES ($1, $2, $3, $4, $5)`,
-		userID, foodID, quantity, foodName, foodPrice)
+	cartItem := bson.M{
+		"user_id":    userID,
+		"food_id":    foodID,
+		"quantity":   quantity,
+		"food_name":  foodName,
+		"food_price": foodPrice,
+		"created_at": time.Now(),
+		"updated_at": time.Now(),
+	}
+	_, err := repo.Col.InsertOne(context.Background(), cartItem)
 	if err != nil {
 		return fmt.Errorf("failed to add item to cart: %w", err)
 	}
 	return nil
 }
 
-// UpdateItemQuantity updates the quantity of an item in the cart
-func (cr *CartRepo) UpdateItemQuantity(userID, foodID, quantity int) error {
-	_, err := cr.DB.Exec("UPDATE cart_items SET quantity = $1, updated_at = CURRENT_TIMESTAMP WHERE user_id = $2 AND id = $3", quantity, userID, foodID)
+func (cr *CartRepo) UpdateItemQuantity(userID, itemID, quantity int) error {
+	filter := bson.M{"user_id": userID, "_id": itemID}
+	update := bson.M{
+		"$set": bson.M{
+			"quantity":   quantity,
+			"updated_at": time.Now(),
+		},
+	}
+	_, err := cr.Col.UpdateOne(context.Background(), filter, update)
 	return err
 }
 
-// RemoveItemFromCart removes an item from the cart
 func (cr *CartRepo) RemoveItemFromCart(userID int, itemID int) error {
-	_, err := cr.DB.Exec(`
-		DELETE FROM cart_items
-		WHERE user_id = $1 AND id = $2
-	`, userID, itemID)
-
+	filter := bson.M{"user_id": userID, "_id": itemID}
+	_, err := cr.Col.DeleteOne(context.Background(), filter)
 	if err != nil {
 		return fmt.Errorf("failed to remove item from cart: %w", err)
 	}
 	return nil
 }
 
-// GetCartItems retrieves items in the user's cart
 func (cr *CartRepo) GetCartItems(userID int) ([]models.CartItem, error) {
-	rows, err := cr.DB.Query(`
-		SELECT ci.id, ci.quantity, f.name, f.price
-		FROM cart_items ci
-		JOIN foods f ON ci.food_id = f.id
-		WHERE ci.user_id = $1
-	`, userID)
+	filter := bson.M{"user_id": userID}
+	cursor, err := cr.Col.Find(context.Background(), filter)
 	if err != nil {
 		return nil, fmt.Errorf("failed to retrieve cart items: %w", err)
 	}
-	defer rows.Close()
+	defer cursor.Close(context.Background())
 
 	var cartItems []models.CartItem
-	for rows.Next() {
+	for cursor.Next(context.Background()) {
 		var item models.CartItem
-		err := rows.Scan(&item.ID, &item.Quantity, &item.FoodName, &item.FoodPrice)
-		if err != nil {
-			return nil, fmt.Errorf("error scanning cart item row: %w", err)
+		if err := cursor.Decode(&item); err != nil {
+			return nil, fmt.Errorf("error decoding cart item: %w", err)
 		}
 		cartItems = append(cartItems, item)
 	}
-
-	if err := rows.Err(); err != nil {
-		return nil, fmt.Errorf("error during row iteration: %w", err)
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("error during cursor iteration: %w", err)
 	}
-
 	return cartItems, nil
 }

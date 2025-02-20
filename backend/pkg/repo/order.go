@@ -1,39 +1,52 @@
 package repo
 
 import (
-	"database/sql"
+	"context"
+	"errors"
 	"fmt"
+	"time"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/mongo"
 )
 
 type OrderRepo struct {
-	db *sql.DB
+	Col *mongo.Collection
 }
 
-func NewOrderRepo(db *sql.DB) *OrderRepo {
-	return &OrderRepo{db: db}
+func NewOrderRepo(col *mongo.Collection) *OrderRepo {
+	return &OrderRepo{Col: col}
 }
 
-func (r *OrderRepo) CreateOrder(userID int, totalPrice float64) (int, error) {
-	var orderID int
-	err := r.db.QueryRow(`
-        INSERT INTO orders (user_id, total_price)
-        VALUES ($1, $2)
-        RETURNING id
-    `, userID, totalPrice).Scan(&orderID)
-	if err != nil {
-		return 0, fmt.Errorf("failed to insert order: %w", err)
+func (r *OrderRepo) CreateOrder(userID int, totalPrice float64) (interface{}, error) {
+	order := bson.M{
+		"user_id":     userID,
+		"total_price": totalPrice,
+		"status":      "pending",
+		"created_at":  time.Now(),
+		"updated_at":  time.Now(),
 	}
-	return orderID, nil
+	res, err := r.Col.InsertOne(context.Background(), order)
+	if err != nil {
+		return nil, fmt.Errorf("failed to insert order: %w", err)
+	}
+	return res.InsertedID, nil
 }
 
-func (r *OrderRepo) UpdateOrderStatus(orderID int, newStatus string) error {
-	_, err := r.db.Exec(`
-        UPDATE orders
-        SET status = $1, updated_at = CURRENT_TIMESTAMP
-        WHERE id = $2
-    `, newStatus, orderID)
+func (r *OrderRepo) UpdateOrderStatus(orderID interface{}, newStatus string) error {
+	filter := bson.M{"_id": orderID}
+	update := bson.M{
+		"$set": bson.M{
+			"status":     newStatus,
+			"updated_at": time.Now(),
+		},
+	}
+	res, err := r.Col.UpdateOne(context.Background(), filter, update)
 	if err != nil {
 		return fmt.Errorf("failed to update order status: %w", err)
+	}
+	if res.MatchedCount == 0 {
+		return errors.New("order not found")
 	}
 	return nil
 }
