@@ -5,6 +5,7 @@ import (
 	"DeliFood/backend/pkg/repo"
 	"fmt"
 	"github.com/gin-gonic/gin"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 	"strconv"
 )
@@ -96,13 +97,14 @@ func DeleteFoodHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	parsedID, err := strconv.Atoi(id)
+	//parsedID, err := strconv.Atoi(id)
+	objID, err := primitive.ObjectIDFromHex(id)
 	if err != nil {
 		http.Error(w, "Invalid ID value", http.StatusBadRequest)
 		return
 	}
 
-	err = userRepo.DeleteFood(parsedID)
+	err = userRepo.DeleteFood(objID)
 	if err != nil {
 		http.Error(w, "Failed to delete food: "+err.Error(), http.StatusInternalServerError)
 		return

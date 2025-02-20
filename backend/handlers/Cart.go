@@ -3,6 +3,7 @@ package handlers
 import (
 	"DeliFood/backend/pkg/repo"
 	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
 	"strconv"
 
@@ -24,6 +25,7 @@ func AddToCartHandler(c *gin.Context) {
 
 	// Get the food ID from the form
 	foodID, err := strconv.Atoi(c.PostForm("food_id"))
+	objFoodID, err := primitive.ObjectIDFromHex(c.PostForm("food_id"))
 	if err != nil || foodID == 0 {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid food ID"})
 		return
@@ -37,7 +39,7 @@ func AddToCartHandler(c *gin.Context) {
 	}
 
 	// Fetch the food details from the database using food ID
-	food, err := userRepo.GetFoodByID(foodID)
+	food, err := userRepo.GetFoodByID(objFoodID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to fetch food details: %s", err)})
 		return
