@@ -39,12 +39,14 @@ func main() {
 	database := dbClient.Database("GoFood")
 
 	// Initialize repositories using MongoDB collections
-	userRepo := repo.NewUserRepo(database.Collection("users"))
 	cartRepo := repo.NewCartRepo(database.Collection("cart_items"))
 	adminRepo := repo.NewAdminRepo(database.Collection("foods"), database.Collection("users"))
-	handlers.SetUserRepo(userRepo)
+	foodRepo := repo.NewFoodRepo(database.Collection("foods"))
+	userRepo := repo.NewUserRepo(database.Collection("users"))
+	handlers.SetFoodRepo(foodRepo)
 	handlers.SetCartRepo(cartRepo)
 	handlers.SetAdminRepo(adminRepo)
+	handlers.SetUserRepo(userRepo)
 
 	// Initialize Gin router
 	r := gin.Default()

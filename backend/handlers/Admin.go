@@ -104,7 +104,7 @@ func DeleteFoodHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = userRepo.DeleteFood(objID)
+	err = foodRepo.DeleteFood(objID)
 	if err != nil {
 		http.Error(w, "Failed to delete food: "+err.Error(), http.StatusInternalServerError)
 		return

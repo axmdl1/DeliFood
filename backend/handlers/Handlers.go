@@ -15,11 +15,15 @@ import (
 	"gopkg.in/gomail.v2"
 )
 
+var foodRepo *repo.FoodRepo
 var userRepo *repo.UserRepo
 
-// SetUserRepo sets the user repository instance
-func SetUserRepo(r *repo.UserRepo) {
-	userRepo = r
+func SetFoodRepo(r *repo.FoodRepo) {
+	foodRepo = r
+}
+
+func SetUserRepo(ur *repo.UserRepo) {
+	userRepo = ur
 }
 
 // MainPageHandler serves the main index page
@@ -39,13 +43,12 @@ func MenuHandler(c *gin.Context) {
 	}
 
 	// Fetch items from the database
-	foods, err := userRepo.GetFood(category, sortParam)
+	foods, err := foodRepo.GetFood(category, sortParam)
 	if err != nil {
 		log.Printf("Error in GetFood: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load menu items"})
 		return
 	}
-	log.Printf("Found %d foods", len(foods))
 
 	// Filter by category
 	filteredFoods := make([]models.Food, 0)

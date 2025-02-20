@@ -6,9 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/primitive"
 	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 type UserRepo struct {
@@ -94,64 +92,4 @@ func (ur *UserRepo) Authenticate(email, password string) (models.User, error) {
 	}
 	// Password comparison logic goes here
 	return user, nil
-}
-
-func (ur *UserRepo) DeleteFood(id primitive.ObjectID) error {
-	_, err := ur.DB.DeleteOne(context.Background(), bson.M{"_id": id})
-	if err != nil {
-		return fmt.Errorf("failed to delete food: %w", err)
-	}
-	return nil
-}
-
-func (ur *UserRepo) GetFood(category, sortParam string) ([]models.Food, error) {
-	var foods []models.Food
-	filter := bson.M{}
-	if category != "" {
-		filter["category"] = category
-	}
-
-	opts := options.Find()
-	if sortParam != "" {
-		switch sortParam {
-		case "price-asc":
-			opts.SetSort(bson.D{{Key: "price", Value: 1}})
-		case "price-desc":
-			opts.SetSort(bson.D{{Key: "price", Value: -1}})
-		case "name":
-			opts.SetSort(bson.D{{Key: "name", Value: 1}})
-		}
-	}
-
-	cursor, err := ur.DB.Find(context.Background(), filter, opts)
-	if err != nil {
-		return nil, fmt.Errorf("failed to retrieve food items: %w", err)
-	}
-	defer cursor.Close(context.Background())
-
-	for cursor.Next(context.Background()) {
-		var food models.Food
-		if err := cursor.Decode(&food); err != nil {
-			return nil, fmt.Errorf("error decoding food: %w", err)
-		}
-		foods = append(foods, food)
-	}
-
-	if err := cursor.Err(); err != nil {
-		return nil, fmt.Errorf("error during cursor iteration: %w", err)
-	}
-
-	return foods, nil
-}
-
-func (ur *UserRepo) GetFoodByID(foodID primitive.ObjectID) (*models.Food, error) {
-	var food models.Food
-	err := ur.DB.FindOne(context.Background(), bson.M{"_id": foodID}).Decode(&food)
-	if err != nil {
-		if err == mongo.ErrNoDocuments {
-			return nil, fmt.Errorf("no food found with ID: %v", foodID)
-		}
-		return nil, fmt.Errorf("error fetching food by ID: %w", err)
-	}
-	return &food, nil
 }

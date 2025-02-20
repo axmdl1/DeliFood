@@ -39,7 +39,7 @@ func AddToCartHandler(c *gin.Context) {
 	}
 
 	// Fetch the food details from the database using food ID
-	food, err := userRepo.GetFoodByID(objFoodID)
+	food, err := foodRepo.GetFoodByID(objFoodID)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to fetch food details: %s", err)})
 		return
