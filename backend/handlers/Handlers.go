@@ -41,9 +41,11 @@ func MenuHandler(c *gin.Context) {
 	// Fetch items from the database
 	foods, err := userRepo.GetFood(category, sortParam)
 	if err != nil {
+		log.Printf("Error in GetFood: %v", err)
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to load menu items"})
 		return
 	}
+	log.Printf("Found %d foods", len(foods))
 
 	// Filter by category
 	filteredFoods := make([]models.Food, 0)
@@ -122,8 +124,8 @@ func ContactUsHandler(c *gin.Context) {
 
 	// Prepare email
 	mail := gomail.NewMessage()
-	mail.SetHeader("From", "mr.akhmedali@bk.ru")
-	mail.SetHeader("To", "mr.akhmedali@bk.ru")
+	mail.SetHeader("From", os.Getenv("DELIFOOD_MAIL"))
+	mail.SetHeader("To", os.Getenv("DELIFOOD_MAIL"))
 	mail.SetHeader("Subject", fmt.Sprintf("Contact Us: %s", subject))
 	mail.SetHeader("Reply-To", email)
 	mail.SetBody("text/plain", fmt.Sprintf("From: %s\nEmail: %s\nMessage: %s", name, email, message))
@@ -135,7 +137,7 @@ func ContactUsHandler(c *gin.Context) {
 	}
 
 	// Send email
-	dialer := gomail.NewDialer("smtp.mail.ru", 587, "mr.akhmedali@bk.ru", "LVWZUunmUvMW8giSXLe0")
+	dialer := gomail.NewDialer("smtp.gmail.com", 587, os.Getenv("DELIFOOD_MAIL"), os.Getenv("DELIFOOD_PASSWORD"))
 	if err := dialer.DialAndSend(mail); err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to send email"})
 		return
