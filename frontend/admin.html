@@ -48,8 +48,8 @@
             <td>{{.Description}}</td>
             <td>
                 <button class="btn edit-btn" data-id="{{.ID}}" onclick="editFood(this)">Edit</button>
-                <form action="/admin/food/delete" method="post" style="display:inline;">
-                    <input type="hidden" name="id" value="{{.ID}}">
+                <form action="/admin/panel/delete" method="post" style="display:inline;">
+                    <input type="hidden" name="id" value="{{.ID.Hex}}">
                     <button type="submit" class="btn delete-btn">Delete</button>
                 </form>
             </td>

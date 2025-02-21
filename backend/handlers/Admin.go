@@ -105,30 +105,21 @@ func ChangeUserRoleHandler(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"message": "User role updated successfully"})
 }
 
-func DeleteFoodHandler(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Invalid request method", http.StatusMethodNotAllowed)
-		return
-	}
-
-	id := r.FormValue("id")
-	if id == "" {
-		http.Error(w, "ID is required", http.StatusBadRequest)
-		return
-	}
-
-	//parsedID, err := strconv.Atoi(id)
-	objID, err := primitive.ObjectIDFromHex(id)
+func DeleteFoodHandler(c *gin.Context) {
+	// Retrieve the food ID from the posted form
+	idStr := c.PostForm("id")
+	objID, err := primitive.ObjectIDFromHex(idStr)
 	if err != nil {
-		http.Error(w, "Invalid ID value", http.StatusBadRequest)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid food ID"})
 		return
 	}
 
-	err = foodRepo.DeleteFood(objID)
-	if err != nil {
-		http.Error(w, "Failed to delete food: "+err.Error(), http.StatusInternalServerError)
+	// Call the repository method to delete the food
+	if err := adminRepo.DeleteFood(objID); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to delete food: %v", err)})
 		return
 	}
 
-	http.Redirect(w, r, "/admin/panel", http.StatusSeeOther)
+	// Redirect back to the admin panel after deletion
+	c.Redirect(http.StatusFound, "/admin/panel")
 }
