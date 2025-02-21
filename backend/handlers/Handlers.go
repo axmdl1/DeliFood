@@ -80,11 +80,18 @@ func MenuHandler(c *gin.Context) {
 	}
 	paginatedItems := filteredFoods[start:end]
 
+	categories, err := foodRepo.GetFoodCategory()
+	if err != nil {
+		log.Printf("Error in GetFoodCategory: %v", err)
+	}
+
 	// Render the menu template
 	c.HTML(http.StatusOK, "menu.html", gin.H{
-		"Items":       paginatedItems,
-		"CurrentPage": page,
-		"TotalPages":  (totalItems + itemsPerPage - 1) / itemsPerPage,
+		"Items":            paginatedItems,
+		"CurrentPage":      page,
+		"Categories":       categories,
+		"SelectedCategory": category,
+		"TotalPages":       (totalItems + itemsPerPage - 1) / itemsPerPage,
 	})
 }
 

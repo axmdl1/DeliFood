@@ -77,3 +77,19 @@ func (fr *FoodRepo) GetFoodByID(foodID primitive.ObjectID) (*models.Food, error)
 	}
 	return &food, nil
 }
+
+func (fr *FoodRepo) GetFoodCategory() ([]string, error) {
+	categories, err := fr.Col.Distinct(context.Background(), "category", bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to retrieve food categories: %w", err)
+	}
+
+	var cats []string
+	for _, cat := range categories {
+		if s, ok := cat.(string); ok {
+			cats = append(cats, s)
+		}
+	}
+
+	return cats, nil
+}

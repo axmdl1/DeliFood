@@ -110,5 +110,5 @@ func DeleteFoodHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Redirect(w, r, "/admin", http.StatusSeeOther)
+	http.Redirect(w, r, "/admin/panel", http.StatusSeeOther)
 }
