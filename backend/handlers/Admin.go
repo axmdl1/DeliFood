@@ -7,7 +7,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"go.mongodb.org/mongo-driver/bson/primitive"
 	"net/http"
+	"path/filepath"
 	"strconv"
+	"time"
 )
 
 var adminRepo *repo.AdminRepo
@@ -47,18 +49,36 @@ func AddFoodHandler(c *gin.Context) {
 	// Parse form data from the request
 	var food models.Food
 	if err := c.ShouldBind(&food); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request data"})
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid form data"})
 		return
 	}
 
-	// Insert the food item into the database
-	err := adminRepo.AddFood(&food)
+	// Parse the uploaded file
+	file, err := c.FormFile("image_file")
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to add food: %s", err)})
+		fmt.Printf("Error retrieving file: %v\n", err)
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid image file"})
 		return
 	}
 
-	// Redirect back to the admin panel or show a success message
+	uniqueFilename := fmt.Sprintf("%d_%s", time.Now().Unix(), file.Filename)
+
+	uploadPath := filepath.Join("frontend", "assets", "images", "menu", uniqueFilename)
+	if err := c.SaveUploadedFile(file, uploadPath); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save image file"})
+		return
+	}
+
+	// Now store the unique filename in the database
+	food.Image = uniqueFilename
+	food.CreatedAt = time.Now()
+	food.UpdatedAt = time.Now()
+
+	if err := adminRepo.AddFood(&food); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to add food: %v", err)})
+		return
+	}
+
 	c.Redirect(http.StatusFound, "/admin/panel")
 }
 

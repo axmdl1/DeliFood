@@ -93,6 +93,7 @@ func main() {
 	adminRoutes.Use(middleware.AuthMiddleware())
 	{
 		adminRoutes.GET("/panel", handlers.AdminPanelHandler)
+		adminRoutes.POST("/panel/add", handlers.AddFoodHandler)
 		adminRoutes.POST("/user/change-role", handlers.ChangeUserRoleHandler)
 		adminRoutes.POST("/panel/food", handlers.AddFoodHandler)
 	}

@@ -93,3 +93,20 @@ func (ar *AdminRepo) GetAllFoods() ([]models.Food, error) {
 
 	return foods, nil
 }
+
+func (ar *AdminRepo) DeleteFood(id primitive.ObjectID) error {
+	_, err := ar.Foods.DeleteOne(context.Background(), bson.M{"_id": id})
+	if err != nil {
+		return fmt.Errorf("failed to delete food: %w", err)
+	}
+	return nil
+}
+
+func (ar *AdminRepo) GetFoodByID(foodID primitive.ObjectID) (*models.Food, error) {
+	var food models.Food
+	err := ar.Foods.FindOne(context.Background(), bson.M{"_id": foodID}).Decode(&food)
+	if err != nil {
+		return nil, fmt.Errorf("error fetching food by ID: %w", err)
+	}
+	return &food, nil
+}

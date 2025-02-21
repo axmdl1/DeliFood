@@ -17,10 +17,10 @@
     <h1 class="menu">Admin Panel</h1>
 
     <!-- Form for adding/editing food -->
-    <form id="foodForm" class="filter-sort-form" action="/admin/panel/food" method="post">
+    <form id="foodForm" class="filter-sort-form" action="/admin/panel/add" method="post" enctype="multipart/form-data">
         <input type="text" name="name" placeholder="Food Name" required>
         <input type="text" name="category" placeholder="Category" required>
-        <input type="text" name="image" placeholder="Image Filename" required>
+        <input type="file" name="image_file" accept="image/*" required>
         <textarea name="description" placeholder="Description" required></textarea>
         <input type="number" name="price" placeholder="Price" required>
         <button type="submit">Add Food</button>
