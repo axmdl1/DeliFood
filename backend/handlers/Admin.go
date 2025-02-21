@@ -82,27 +82,34 @@ func AddFoodHandler(c *gin.Context) {
 	c.Redirect(http.StatusFound, "/admin/panel")
 }
 
-// ChangeUserRoleHandler handles the request to change a user's role
-func ChangeUserRoleHandler(c *gin.Context) {
-	userID, err := strconv.Atoi(c.PostForm("userID"))
-	if err != nil || userID == 0 {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid user ID"})
-		return
-	}
-
-	newRole := c.PostForm("role") // 'role' comes from the form field in the frontend
-	if newRole != "user" && newRole != "admin" {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid role"})
-		return
-	}
-
-	err = adminRepo.UpdateUserRole(userID, newRole) // Assuming userRepo has this method
+func UserRolePanelHandler(c *gin.Context) {
+	// Load all users from the database
+	users, err := adminRepo.GetAllUsers()
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update user role"})
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to load users: %v", err)})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "User role updated successfully"})
+	c.HTML(http.StatusOK, "userRole.html", gin.H{
+		"Users": users,
+	})
+}
+
+func ChangeUserRoleHandler(c *gin.Context) {
+	userID := c.PostForm("user_id")
+	newRole := c.PostForm("role")
+
+	if userID == "" || newRole == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "User ID and role are required"})
+		return
+	}
+
+	if err := adminRepo.UpdateUserRole(userID, newRole); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update user role: %v", err)})
+		return
+	}
+
+	c.Redirect(http.StatusFound, "/admin/user/role-panel")
 }
 
 func DeleteFoodHandler(c *gin.Context) {

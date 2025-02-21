@@ -64,11 +64,18 @@ func (ar *AdminRepo) UpdateFood(food models.Food) error {
 	return err
 }
 
-func (ar *AdminRepo) UpdateUserRole(userID int, role string) error {
-	filter := bson.M{"_id": userID}
-	update := bson.M{"$set": bson.M{"role": role}}
-	_, err := ar.Users.UpdateOne(context.Background(), filter, update)
-	return err
+func (ar *AdminRepo) UpdateUserRole(userID string, newRole string) error {
+	objID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return fmt.Errorf("invalid user ID: %w", err)
+	}
+	filter := bson.M{"_id": objID}
+	update := bson.M{"$set": bson.M{"role": newRole}}
+	_, err = ar.Users.UpdateOne(context.Background(), filter, update)
+	if err != nil {
+		return fmt.Errorf("failed to update user role: %w", err)
+	}
+	return nil
 }
 
 func (ar *AdminRepo) GetAllFoods() ([]models.Food, error) {
@@ -109,4 +116,25 @@ func (ar *AdminRepo) GetFoodByID(foodID primitive.ObjectID) (*models.Food, error
 		return nil, fmt.Errorf("error fetching food by ID: %w", err)
 	}
 	return &food, nil
+}
+
+func (ar *AdminRepo) GetAllUsers() ([]models.User, error) {
+	cursor, err := ar.Users.Find(context.Background(), bson.M{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to fetch users: %w", err)
+	}
+	defer cursor.Close(context.Background())
+
+	var users []models.User
+	for cursor.Next(context.Background()) {
+		var user models.User
+		if err := cursor.Decode(&user); err != nil {
+			return nil, fmt.Errorf("error decoding user: %w", err)
+		}
+		users = append(users, user)
+	}
+	if err := cursor.Err(); err != nil {
+		return nil, fmt.Errorf("cursor error: %w", err)
+	}
+	return users, nil
 }

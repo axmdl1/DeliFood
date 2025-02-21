@@ -97,6 +97,7 @@ func main() {
 		adminRoutes.POST("/panel/delete", handlers.DeleteFoodHandler)
 		adminRoutes.POST("/panel/update", handlers.UpdateFoodHandler)
 		adminRoutes.POST("/user/change-role", handlers.ChangeUserRoleHandler)
+		adminRoutes.GET("/user/role-panel", handlers.UserRolePanelHandler)
 		adminRoutes.POST("/panel/food", handlers.AddFoodHandler)
 	}
 

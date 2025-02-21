@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>User Role Management - DeliFood Admin Panel</title>
+  <link rel="stylesheet" href="/assets/css/menuStyle.css">
+</head>
+<body>
+<header class="header">
+  <a href="#" class="logo"><i class="fas fa-user-shield"></i> Admin Panel</a>
+  <a href="/admin/panel" class="btn">Back to Foods</a>
+</header>
+
+<section class="admin-panel">
+  <h1 class="menu">Manage User Roles</h1>
+  <table class="food-table">
+    <thead>
+    <tr>
+      <th>User ID</th>
+      <th>Email</th>
+      <th>Current Role</th>
+      <th>Change Role</th>
+    </tr>
+    </thead>
+    <tbody>
+    {{range .Users}}
+    <tr>
+      <td>{{.ID.Hex}}</td>
+      <td>{{.Email}}</td>
+      <td>{{.Role}}</td>
+      <td>
+        <form action="/admin/user/change-role" method="post">
+          <!-- Pass user ID in a hidden field -->
+          <input type="hidden" name="user_id" value="{{.ID.Hex}}">
+          <select name="role" required>
+            <option value="user" {{if eq .Role "user"}}selected{{end}}>User</option>
+            <option value="admin" {{if eq .Role "admin"}}selected{{end}}>Admin</option>
+          </select>
+          <button type="submit" class="btn">Update Role</button>
+        </form>
+      </td>
+    </tr>
+    {{end}}
+    </tbody>
+  </table>
+</section>
+</body>
+</html>
