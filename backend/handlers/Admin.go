@@ -123,3 +123,55 @@ func DeleteFoodHandler(c *gin.Context) {
 	// Redirect back to the admin panel after deletion
 	c.Redirect(http.StatusFound, "/admin/panel")
 }
+
+func UpdateFoodHandler(c *gin.Context) {
+	// Retrieve the food ID from the hidden form field
+	idStr := c.PostForm("id")
+	objID, err := primitive.ObjectIDFromHex(idStr)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid food ID"})
+		return
+	}
+
+	// Create a new Food object and populate non-file fields
+	var food models.Food
+	food.Name = c.PostForm("name")
+	food.Category = c.PostForm("category")
+	food.Description = c.PostForm("description")
+	priceStr := c.PostForm("price")
+	if price, err := strconv.ParseFloat(priceStr, 64); err == nil {
+		food.Price = price
+	} else {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid price value"})
+		return
+	}
+
+	// Determine image file: check if a new file is uploaded
+	file, err := c.FormFile("image_file")
+	if err != nil {
+		// No new file uploaded; use the current image from the hidden field
+		food.Image = c.PostForm("current_image")
+	} else {
+		// New file uploaded: generate a unique filename and save it
+		uniqueFilename := fmt.Sprintf("%d_%s", time.Now().Unix(), file.Filename)
+		uploadPath := filepath.Join("frontend", "assets", "images", "menu", uniqueFilename)
+		if err := c.SaveUploadedFile(file, uploadPath); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save new image file"})
+			return
+		}
+		food.Image = uniqueFilename
+	}
+
+	// Set the ID and updated timestamp
+	food.ID = objID
+	food.UpdatedAt = time.Now()
+
+	// Call the repository update method
+	if err := adminRepo.UpdateFood(food); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": fmt.Sprintf("Failed to update food: %v", err)})
+		return
+	}
+
+	// Redirect back to the admin panel after successful update
+	c.Redirect(http.StatusFound, "/admin/panel")
+}

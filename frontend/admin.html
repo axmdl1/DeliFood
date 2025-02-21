@@ -16,14 +16,22 @@
 <section class="admin-panel">
     <h1 class="menu">Admin Panel</h1>
 
-    <!-- Form for adding/editing food -->
+    <!-- Unified form for adding/editing food -->
     <form id="foodForm" class="filter-sort-form" action="/admin/panel/add" method="post" enctype="multipart/form-data">
-        <input type="text" name="name" placeholder="Food Name" required>
-        <input type="text" name="category" placeholder="Category" required>
-        <input type="file" name="image_file" accept="image/*" required>
-        <textarea name="description" placeholder="Description" required></textarea>
-        <input type="number" name="price" placeholder="Price" required>
-        <button type="submit">Add Food</button>
+        <!-- Hidden field for food ID (empty when adding new food) -->
+        <input type="hidden" id="foodId" name="id" value="">
+        <!-- Hidden field to store the current image filename -->
+        <input type="hidden" id="currentImage" name="current_image" value="">
+
+        <input type="text" id="foodName" name="name" placeholder="Food Name" required>
+        <input type="text" id="foodCategory" name="category" placeholder="Category" required>
+
+        <!-- File input for new image; not required in update mode -->
+        <input type="file" id="foodImage" name="image_file" accept="image/*">
+
+        <textarea id="foodDescription" name="description" placeholder="Description" required></textarea>
+        <input type="number" id="foodPrice" name="price" placeholder="Price" step="0.01" required>
+        <button type="submit" id="formSubmitBtn">Add Food</button>
     </form>
 
     <!-- List of foods -->
@@ -47,7 +55,7 @@
             <td>{{.Price}}</td>
             <td>{{.Description}}</td>
             <td>
-                <button class="btn edit-btn" data-id="{{.ID}}" onclick="editFood(this)">Edit</button>
+                <button class="btn edit-btn" data-id="{{.ID.Hex}}" onclick="editFood(this)">Edit</button>
                 <form action="/admin/panel/delete" method="post" style="display:inline;">
                     <input type="hidden" name="id" value="{{.ID.Hex}}">
                     <button type="submit" class="btn delete-btn">Delete</button>
@@ -64,18 +72,26 @@
     function editFood(button) {
         const row = button.closest("tr");
         const id = button.getAttribute("data-id");
-        const name = row.children[1].textContent;
-        const category = row.children[2].textContent;
-        const price = row.children[3].textContent;
-        const description = row.children[4].textContent;
-        const image = row.children[0].textContent;
+        const image = row.children[0].textContent.trim();
+        const name = row.children[1].textContent.trim();
+        const category = row.children[2].textContent.trim();
+        const price = row.children[3].textContent.trim();
+        const description = row.children[4].textContent.trim();
 
+        // Set form values
         document.getElementById("foodId").value = id;
         document.getElementById("foodName").value = name;
         document.getElementById("foodCategory").value = category;
-        document.getElementById("foodPrice").value = price;
+        // Set the hidden current image value so we know the existing image filename
+        document.getElementById("currentImage").value = image;
+        // Clear the file input (file inputs cannot be pre-filled)
+        document.getElementById("foodImage").value = "";
         document.getElementById("foodDescription").value = description;
-        document.getElementById("foodImage").value = image;
+        document.getElementById("foodPrice").value = price;
+
+        // Change the form action and button text for update mode
+        document.getElementById("foodForm").action = "/admin/panel/update";
+        document.getElementById("formSubmitBtn").textContent = "Update Food";
     }
 </script>
 
