@@ -141,11 +141,11 @@ func LoginHandler(c *gin.Context) {
 	}
 
 	// Get email and password from the form
-	email := c.PostForm("email")
+	identifier := c.PostForm("identifier")
 	password := c.PostForm("password")
 
 	// Authenticate the user using the provided email and password
-	user, err := userRepo.Authenticate(email, password)
+	user, err := userRepo.Authenticate(identifier, password)
 	if err != nil {
 		c.JSON(http.StatusUnauthorized, gin.H{"error": "Login failed: " + err.Error()})
 		return

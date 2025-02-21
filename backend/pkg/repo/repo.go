@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/mongo"
+	"golang.org/x/crypto/bcrypt"
 )
 
 type UserRepo struct {
@@ -78,18 +79,31 @@ func (ur *UserRepo) VerifyEmail(email, code string) error {
 	return nil
 }
 
-func (ur *UserRepo) Authenticate(email, password string) (models.User, error) {
+func (ur *UserRepo) Authenticate(identifier, password string) (models.User, error) {
 	var user models.User
-	err := ur.DB.FindOne(context.Background(), bson.M{"email": email}).Decode(&user)
+	filter := bson.M{
+		"$or": []bson.M{
+			{"email": identifier},
+			{"username": identifier},
+		},
+	}
+	err := ur.DB.FindOne(context.Background(), filter).Decode(&user)
 	if err != nil {
 		if err == mongo.ErrNoDocuments {
-			return models.User{}, errors.New("invalid email or password")
+			return models.User{}, errors.New("invalid username/email or password")
 		}
 		return models.User{}, fmt.Errorf("error fetching user: %w", err)
 	}
+
+	// Check the password. For example, if you're using bcrypt:
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
+		return models.User{}, errors.New("invalid username/email or password")
+	}
+
+	// Check if the user is verified
 	if !user.IsVerified {
 		return models.User{}, errors.New("email not verified")
 	}
-	// Password comparison logic goes here
+
 	return user, nil
 }
