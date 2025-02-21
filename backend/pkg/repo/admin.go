@@ -3,6 +3,7 @@ package repo
 import (
 	"context"
 	"fmt"
+	"go.mongodb.org/mongo-driver/bson/primitive"
 	"time"
 
 	"DeliFood/backend/models"
@@ -20,6 +21,21 @@ func NewAdminRepo(foods, users *mongo.Collection) *AdminRepo {
 		Foods: foods,
 		Users: users,
 	}
+}
+
+func (ar *AdminRepo) GetUserRole(userID string) (string, error) {
+	objID, err := primitive.ObjectIDFromHex(userID)
+	if err != nil {
+		return "", err
+	}
+
+	var user models.User
+	err = ar.Users.FindOne(context.Background(), bson.M{"_id": objID}).Decode(&user)
+	if err != nil {
+		return "", err
+	}
+
+	return user.Role, nil
 }
 
 func (ar *AdminRepo) AddFood(food *models.Food) error {

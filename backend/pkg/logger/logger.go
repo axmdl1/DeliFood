@@ -35,7 +35,3 @@ func (l *Logger) Warn(message string, fields map[string]interface{}) {
 func (l *Logger) Error(message string, fields map[string]interface{}) {
 	l.log.WithFields(logrus.Fields(fields)).Error(message)
 }
-
-// Example usage:
-// logger := logger.NewLogger()
-// logger.Info("Application started", map[string]interface{}{"module": "main"})
